@@ -332,5 +332,33 @@ def main() -> int:
     return 0
 
 
+def run_stratification(df: pd.DataFrame, top_n: int = 5) -> None:
+    """对 IC 最强的因子跑分层回测。"""
+    results = run_all_factors(df)
+    valid = [r for r in results if "error" not in r]
+    valid.sort(key=lambda x: abs(x["ic_mean"]), reverse=True)
+
+    print(f"\n{'='*80}")
+    print("ETH/USDT 1h Stratified Backtest (Top Factors)")
+    print(f"{'='*80}")
+
+    for i, r in enumerate(valid[:top_n]):
+        factor_name = r["factor"].split("(")[0].rstrip("_0123456789") if "(" not in r["factor"] else r["factor"].split("(")[0]
+        lookback_raw = DEFAULT_LOOKBACKS.get(factor_name, [12])[0]
+
+        sb = stratified_backtest(df, factor_name, lookback_raw)
+        spread = sb["long_short_spread"]
+        direction = "LONG low-factor" if spread > 0 else "SHORT high-factor"
+        print(
+            f"  {r['factor']:<30} spread={spread:+.4f} ({direction}) "
+            f"| IC={r['ic_mean']:+.4f} ICIR={r['icir']:+.3f}"
+        )
+    print(f"{'='*80}\n")
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    if "--stratify" in sys.argv:
+        df = load_data()
+        run_stratification(df)
+    else:
+        sys.exit(main())
