@@ -23,11 +23,9 @@ logger = logging.getLogger(__name__)
 
 def load_data(path: str, symbol: str | None = None) -> pd.DataFrame:
     """加载 CSV，标准化列名，设置时间索引。"""
-    df = pd.read_csv(
-        path,
-        parse_dates=["timestamp", "datetime", "date"],
-        infer_datetime_format=True,
-    )
+    sample_cols = set(pd.read_csv(path, nrows=0).columns)
+    date_cols = [c for c in ("timestamp", "datetime", "date") if c in sample_cols]
+    df = pd.read_csv(path, parse_dates=date_cols if date_cols else False)
     # 标准化列名
     rename_map = {
         "o": "open",
@@ -203,28 +201,32 @@ def run_checks(df: pd.DataFrame, freq: str = "1h") -> dict:
 def print_report(results: dict, df: pd.DataFrame) -> None:
     """打印文本报告。"""
     dqs = results["dqs"]
+    grade_map = {"🟢": "[PASS]", "🟡": "[WARN]", "🔴": "[FAIL]"}
+    grade_icon = dqs.get("grade", "")
+    grade_label = grade_map.get(grade_icon, grade_icon)
+
     print(f"\n{'='*50}")
-    print(f"OHLCV 数据质量检查报告")
+    print(f"OHLCV Data Quality Report")
     print(f"{'='*50}")
-    print(f"总行数: {dqs['total_rows']}")
-    print(f"DQS 评分: {dqs['overall']}/100 {dqs['grade']}")
-    print(f"\n五维度评分:")
+    print(f"Total rows: {dqs['total_rows']}")
+    print(f"DQS Score:  {dqs['overall']}/100 {grade_label}")
+    print(f"\nDimensions:")
     for dim, score in dqs["dimensions"].items():
         print(f"  {dim:15s}: {score}")
-    print(f"\n问题汇总:")
-    print(f"  OHLC 逻辑违规: {results['ohlc_violations']}")
-    print(f"  缺失时间点:    {results['missing_timestamps']}")
-    print(f"  未来数据行:    {results['future_rows']} {'🔴' if results['future_rows'] else ''}")
-    print(f"  价格异常跳变:  {results['price_jumps']}")
-    print(f"  成交量异常:    {results['volume_anomalies']}")
-    print(f"  零成交量:      {results['zero_volume']}")
-    print(f"\n建议:")
+    print(f"\nIssues:")
+    print(f"  OHLC logic violations: {results['ohlc_violations']}")
+    print(f"  Missing timestamps:    {results['missing_timestamps']}")
+    print(f"  Future data rows:      {results['future_rows']} {'!!' if results['future_rows'] else ''}")
+    print(f"  Price jumps:           {results['price_jumps']}")
+    print(f"  Volume anomalies:      {results['volume_anomalies']}")
+    print(f"  Zero volume rows:      {results['zero_volume']}")
+    print(f"\nVerdict:")
     if dqs["overall"] >= 85:
-        print("  🟢 数据质量良好，可进入回测")
+        print("  [PASS] Data quality good, ready for backtest")
     elif dqs["overall"] >= 65:
-        print("  🟡 数据可用，但需记录注意事项")
+        print("  [WARN] Usable with caveats")
     else:
-        print("  🔴 数据质量不达标，修复后方可使用")
+        print("  [FAIL] Data quality insufficient")
     print(f"{'='*50}\n")
 
 
