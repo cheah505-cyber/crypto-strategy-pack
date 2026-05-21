@@ -1,0 +1,35 @@
+{
+  "_note": "tasks 数组中每个对象是一个待回测任务。completed 字段由循环脚本更新。任务按优先级排列。",
+  "tasks": [
+    {
+      "id": "example-01",
+      "name": "示例：双均线交叉回测",
+      "factor": "sma_cross",
+      "params": {
+        "symbol": "BTC/USDT",
+        "timeframe": "1h",
+        "fast_period": 20,
+        "slow_period": 50,
+        "start": "2023-01-01",
+        "end": "2024-12-31",
+        "fee_maker": 0.001,
+        "fee_taker": 0.001,
+        "slippage": 0.0005
+      },
+      "completed": false
+    },
+    {
+      "id": "example-02",
+      "name": "示例：动量因子 IC 分析",
+      "factor": "momentum",
+      "params": {
+        "symbol": "ETH/USDT",
+        "timeframe": "4h",
+        "lookback_periods": [12, 24, 48, 96],
+        "start": "2023-01-01",
+        "end": "2024-12-31"
+      },
+      "completed": false
+    }
+  ]
+}

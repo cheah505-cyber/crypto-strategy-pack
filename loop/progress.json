@@ -1,0 +1,17 @@
+[
+  {
+    "task_id": "example-01",
+    "completed": true,
+    "timestamp": "placeholder",
+    "summary": {
+      "total_return": null,
+      "annual_return": null,
+      "max_drawdown": null,
+      "sharpe_ratio": null,
+      "calmar_ratio": null,
+      "num_trades": null,
+      "win_rate": null,
+      "notes": "示例模板，实际任务完成后会填充真实数据"
+    }
+  }
+]
