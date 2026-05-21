@@ -31,7 +31,6 @@
 
 | File | Action | Why |
 |---|---|---|
-| `data/btc_usdt_1h.csv` | CREATE | BTC 数据补充（VT 校准需跨币对比） |
 | `loop/tasks.json` | UPDATE | 替换示例任务为正式任务 |
 | `loop/findings.md` | UPDATE | 记录 alpha bench 校准结果 |
 | `strategies/momentum_factor.py` | CREATE | Phase 2 自定义动量因子 |
@@ -39,7 +38,6 @@
 ## 验证条件（每阶段门禁）
 
 ### Phase 1 完成门禁
-- [ ] BTC/USDT 1h 数据 DQS ≥ 85
 - [ ] alpha101 bench 跑完，输出 IC 排名
 - [ ] 有效因子数量已判断（≥15 / 5-15 / <5）
 - [ ] 校准结论写入 findings.md
@@ -60,24 +58,19 @@
 
 ## Tasks
 
-### Phase 1：VT Alpha Zoo 校准（先跑 BTC，再跑 ETH）
+### Phase 1：VT Alpha Zoo 校准（ETH/USDT 1h）
 
-#### Task 1.1：补充 BTC/USDT 1h 数据
-- **VT 负责**: `vibe-trading run -p "fetch BTC/USDT 1h OHLCV from Binance 2023-01-01 to now"`
-- **Crypto 负责**: 跑 `ohlcv_quality_checker.py` 验证，确认 DQS ≥ 85
-- **验证**: DQS 评分 ≥ 85
-
-#### Task 1.2：跑 VT alpha bench — alpha101
+#### Task 1.1：跑 VT alpha bench — alpha101
 - **命令**: `vibe-trading alpha bench --zoo alpha101 --universe crypto --period 2024-2025 --top 20`
-- **产出**: 101 因子在 ETH/BTC 上的 IC 排名 + alive/reversed/dead 分类
+- **产出**: 101 因子在 ETH/USDT 上的 IC 排名 + alive/reversed/dead 分类
 - **验证**: IC > 0.05 的因子数量可数
 
-#### Task 1.3：跑 VT alpha bench — gtja191
+#### Task 1.2：跑 VT alpha bench — gtja191
 - **命令**: `vibe-trading alpha bench --zoo gtja191 --universe crypto --period 2024-2025 --top 20`
 - **产出**: 191 因子 IC 排名
 - **验证**: 同上
 
-#### Task 1.4：校准决策
+#### Task 1.3：校准决策
 - **条件**: 统计 alpha101 + gtja191 中 IC > 0.05 的因子数
 - **分叉**:
   - ≥ 15 → VT 因子主力，直接用它的动量因子
