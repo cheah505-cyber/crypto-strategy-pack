@@ -144,6 +144,15 @@ def _summarize(equity: pd.Series, benchmark: pd.Series, trades: list[dict]) -> d
     bench_ret = float(benchmark.iloc[-1] - 1)
     bench_ann = float((1 + bench_ret) ** (1 / n_years) - 1) if n_years > 0 else 0
 
+    holding_hours = []
+    for t in completed:
+        if "entry_time" in t and "exit_time" in t:
+            try:
+                h = (pd.Timestamp(t["exit_time"]) - pd.Timestamp(t["entry_time"])).total_seconds() / 3600
+                holding_hours.append(h)
+            except Exception:
+                pass
+
     return {
         "total_return": round(total_ret * 100, 2),
         "annual_return": round(ann_ret * 100, 2),
@@ -162,6 +171,9 @@ def _summarize(equity: pd.Series, benchmark: pd.Series, trades: list[dict]) -> d
         "benchmark_return": round(bench_ret * 100, 2),
         "benchmark_annual": round(bench_ann * 100, 2),
         "excess_return": round((ann_ret - bench_ann) * 100, 2),
+        "max_holding_hours": round(max(holding_hours), 1) if holding_hours else 0,
+        "avg_holding_hours": round(np.mean(holding_hours), 1) if holding_hours else 0,
+        "max_holding_bars": int(max(holding_hours) / 4) if holding_hours else 0,
         "equity_curve": equity,
         "trades": completed,
     }
@@ -189,6 +201,9 @@ def print_report(r: dict) -> None:
     print(f"  Avg Win:              {r['avg_win']:>+8.2f}%")
     print(f"  Avg Loss:             {r['avg_loss']:>+8.2f}%")
     print(f"  Profit Factor:        {r['profit_factor']:>8.2f}")
+    print()
+    print(f"  Max Holding:           {r['max_holding_hours']:>8.1f}h ({r['max_holding_bars']} bars)")
+    print(f"  Avg Holding:           {r['avg_holding_hours']:>8.1f}h")
     print()
     print(f"  Benchmark (B&H ETH):  {r['benchmark_return']:>+8.2f}%")
     print(f"  Benchmark Annual:     {r['benchmark_annual']:>+8.2f}%")
