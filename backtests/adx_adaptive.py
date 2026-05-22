@@ -20,8 +20,17 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = PROJECT_ROOT / "data" / "eth_usdt_4h.csv"
 
-FEE = 0.001
-SLIPPAGE = 0.0005
+FEE = 0.001          # 0.1% per side (maker+taker avg)
+SLIPPAGE = 0.0005    # 0.05% per side
+
+# 交易成本函数
+def entry_cost(price: float) -> float:
+    """买入: 价格 × (1+滑点) × (1+手续费)."""
+    return price * (1 + SLIPPAGE) * (1 + FEE)
+
+def exit_value(price: float) -> float:
+    """卖出: 价格 × (1-滑点) × (1-手续费)."""
+    return price * (1 - SLIPPAGE) * (1 - FEE)
 
 # ADX 参数
 ADX_PERIOD = 14
@@ -30,11 +39,13 @@ ADX_RANGE = 20
 
 # 趋势跟踪参数 (Donchian)
 DC_PERIOD = 20
+ATR_TRAIL_MULT = 2.0   # ATR 跟踪止损倍数
 
 # 均值回归参数 (RSI)
 RSI_PERIOD = 14
 RSI_OVERSOLD = 35
 RSI_OVERBOUGHT = 65
+MR_ATR_STOP_MULT = 3.0  # 均值回归硬止损（宽止损，防黑天鹅）
 
 
 def load_data() -> pd.DataFrame:
@@ -98,12 +109,19 @@ def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     df["regime_trend"] = df["adx"] > ADX_TREND
     df["regime_range"] = df["adx"] < ADX_RANGE
 
+    # ATR (用于止损)
+    high_low = df["high"] - df["low"]
+    high_close = (df["high"] - df["close"].shift()).abs()
+    low_close = (df["low"] - df["close"].shift()).abs()
+    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+    df["atr"] = tr.ewm(alpha=1 / 14, min_periods=14).mean()
+
     # 根据状态选信号
     raw = pd.Series(0.0, index=df.index)
-    raw[df["regime_trend"] & df["trend_entry"]] = 1.0     # 趋势突破买入
-    raw[df["regime_trend"] & df["trend_exit"]] = -1.0      # 趋势止损
-    raw[df["regime_range"] & df["mr_entry"]] = 1.0          # 超卖买入
-    raw[df["regime_range"] & df["mr_exit"]] = -1.0          # 超买卖出
+    raw[df["regime_trend"] & df["trend_entry"]] = 1.0
+    raw[df["regime_trend"] & df["trend_exit"]] = -1.0
+    raw[df["regime_range"] & df["mr_entry"]] = 1.0
+    raw[df["regime_range"] & df["mr_exit"]] = -1.0
 
     df["signal"] = raw.replace(0.0, np.nan).ffill().fillna(0.0)
     return df
@@ -113,7 +131,10 @@ def run_backtest(df: pd.DataFrame) -> dict:
     trades: list[dict] = []
     in_position = False
     entry_price: float = 0.0
+    entry_equity: float = 1.0   # 入场时的权益值
     entry_regime: str = ""
+    trail_stop: float = 0.0
+    hard_stop: float = 0.0
 
     equity = [1.0]
     peak = 1.0
@@ -122,20 +143,69 @@ def run_backtest(df: pd.DataFrame) -> dict:
     for i in range(len(df)):
         row = df.iloc[i]
         price = float(row["close"])
+        atr_val = float(row.get("atr", 0) or 0)
         sig = float(row["signal"])
+        is_trend = bool(row["regime_trend"])
 
+        # ── 止损检查 ──
+        if in_position:
+            stop_hit = False
+            exit_reason_str = ""
+            if entry_regime == "trend" and price < trail_stop:
+                stop_hit = True
+                exit_reason_str = "trail_stop"
+            elif entry_regime == "mr" and price < hard_stop:
+                stop_hit = True
+                exit_reason_str = "hard_stop"
+
+            if stop_hit:
+                ev = exit_value(price)
+                ret = ev / entry_price - 1
+                trades[-1]["exit_reason"] = exit_reason_str
+                trades[-1]["exit_price"] = price
+                trades[-1]["return"] = ret
+                trades[-1]["exit_time"] = df.index[i]
+                # 用入场时的权益计算出场权益（避免 MTM 复利污染）
+                new_eq = entry_equity * (1 + ret)
+                equity.append(new_eq)
+                peak = max(peak, new_eq)
+                max_dd = max(max_dd, (peak - new_eq) / peak)
+                in_position = False
+                continue
+
+        # ── 信号出场 ──
+        if in_position and sig == -1.0:
+            ev = exit_value(price)
+            ret = ev / entry_price - 1
+            trades[-1]["exit_reason"] = "signal"
+            trades[-1]["exit_price"] = price
+            trades[-1]["return"] = ret
+            trades[-1]["exit_time"] = df.index[i]
+            new_eq = entry_equity * (1 + ret)
+            equity.append(new_eq)
+            peak = max(peak, new_eq)
+            max_dd = max(max_dd, (peak - new_eq) / peak)
+            in_position = False
+            continue
+
+        # ── 入场 ──
         if not in_position and sig == 1.0:
-            entry_price = price * (1 + SLIPPAGE)
+            ec = entry_cost(price)
+            entry_price = ec
+            entry_equity = equity[-1]
             in_position = True
-            if bool(row["regime_trend"]):
+            if is_trend:
                 entry_regime = "trend"
+                trail_stop = price - atr_val * ATR_TRAIL_MULT
             elif bool(row["regime_range"]):
                 entry_regime = "mr"
+                hard_stop = price - atr_val * MR_ATR_STOP_MULT
             else:
                 entry_regime = "unknown"
+                hard_stop = price - atr_val * MR_ATR_STOP_MULT
             trades.append({
                 "entry_time": df.index[i],
-                "entry_price": entry_price,
+                "entry_price": ec,
                 "regime": entry_regime,
                 "exit_reason": None,
                 "exit_price": None,
@@ -144,20 +214,12 @@ def run_backtest(df: pd.DataFrame) -> dict:
             equity.append(equity[-1])
             continue
 
-        if in_position and sig == -1.0:
-            exit_price = price * (1 - SLIPPAGE)
-            ret = (exit_price / entry_price - 1) - (FEE * 2)
-            trades[-1]["exit_reason"] = "signal"
-            trades[-1]["exit_price"] = exit_price
-            trades[-1]["return"] = ret
-            trades[-1]["exit_time"] = df.index[i]
-            new_eq = equity[-1] * (1 + ret)
-            equity.append(new_eq)
-            peak = max(peak, new_eq)
-            max_dd = max(max_dd, (peak - new_eq) / peak)
-            in_position = False
-            continue
+        # ── 跟踪止损更新（趋势模式）──
+        if in_position and entry_regime == "trend":
+            new_stop = price - atr_val * ATR_TRAIL_MULT
+            trail_stop = max(trail_stop, new_stop)
 
+        # ── 按市价估值（用于计算回撤）──
         if in_position:
             bar_ret = price / float(df.iloc[i - 1]["close"]) - 1
             new_eq = equity[-1] * (1 + bar_ret)
@@ -167,13 +229,15 @@ def run_backtest(df: pd.DataFrame) -> dict:
         else:
             equity.append(equity[-1])
 
+    # 最终平仓 — 同时修正权益曲线末值
     if in_position:
-        exit_price = float(df.iloc[-1]["close"]) * (1 - SLIPPAGE)
-        ret = (exit_price / entry_price - 1) - (FEE * 2)
+        ev = exit_value(float(df.iloc[-1]["close"]))
+        ret = ev / entry_price - 1
         trades[-1]["exit_reason"] = "eod"
-        trades[-1]["exit_price"] = exit_price
+        trades[-1]["exit_price"] = float(df.iloc[-1]["close"])
         trades[-1]["return"] = ret
         trades[-1]["exit_time"] = df.index[-1]
+        equity[-1] = entry_equity * (1 + ret)
 
     equity_series = pd.Series(equity[:len(df)], index=df.index)
     benchmark = df["close"] / df["close"].iloc[0]
@@ -259,8 +323,8 @@ def print_report(r: dict) -> None:
         return
 
     print(f"\n{'='*60}")
-    print("ADX Adaptive: Trend + Mean-Reversion — 4h Full Data 2023-2026")
-    print(f"ADX>{ADX_TREND}=Breakout / ADX<{ADX_RANGE}=RSI Reversal")
+    print("ADX Adaptive + ATR Trailing Stop — 4h 2023-2026")
+    print(f"ADX>{ADX_TREND}=Breakout+Trail / ADX<{ADX_RANGE}=RSI+HardStop")
     print(f"{'='*60}")
     print(f"  Total Return:         {r['total_return']:>+8.2f}%")
     print(f"  Annual Return:        {r['annual_return']:>+8.2f}%")
@@ -287,7 +351,9 @@ def print_report(r: dict) -> None:
 
     trades = r["trades"]
     if trades:
-        print("Last 5 trades (regime):")
+        stops = [t for t in trades if "stop" in str(t.get("exit_reason", ""))]
+        print(f"  Stop-outs: {len(stops)}/{len(trades)}")
+        print("  Last 5 trades (regime):")
         for t in trades[-5:]:
             direction = "WIN" if t["return"] > 0 else "LOSS"
             regime = t.get("regime", "?")
