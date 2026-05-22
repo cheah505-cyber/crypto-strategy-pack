@@ -21,7 +21,7 @@ DATA_PATH = PROJECT_ROOT / "data" / "eth_usdt_4h.csv"
 # 费用
 FEE = 0.0004          # 永续 taker 0.04%
 SLIPPAGE = 0.0002     # 0.02%
-FUNDING_RATE = 0.0001 # 每 8h 0.01% → 每 4h bar 0.005%
+FUNDING_RATE = 0.0000375  # 0.01%/8h → 0.00375%/4h bar
 
 # 杠杆
 MAX_LEVERAGE = 10.0
@@ -172,18 +172,10 @@ def run_backtest(df: pd.DataFrame) -> dict:
                     stop_hit = True; reason = "hard_stop"
 
             if stop_hit:
-                exit_px = exit_value(price) if pos_side == 1 else entry_cost(price)
-                invested = entry_price * contracts
                 if pos_side == 1:
-                    pnl = (exit_px - entry_price) * contracts
+                    pnl = (exit_value(price) - entry_price) * contracts
                 else:
-                    entry_px_s = entry_cost(price) if False else entry_price
-                    # short: buy back at exit_value to close
-                    cover_px = entry_cost(price)  # buying back costs entry_cost
-                    pnl = (entry_price - cover_px) * contracts
-                # Funding cost
-                if "exit_time" not in trades[-1]:
-                    pass
+                    pnl = (entry_price - entry_cost(price)) * contracts
                 ret = pnl / entry_equity
                 trades[-1]["exit_reason"] = reason
                 trades[-1]["exit_price"] = price
