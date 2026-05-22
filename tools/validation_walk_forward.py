@@ -8,8 +8,8 @@ sys.path.insert(0, ".")
 
 import numpy as np
 import pandas as pd
-from backtests.adx_adaptive import load_data, compute_signals
-import backtests.adx_adaptive as mod
+from backtests.adx_adaptive_spot_eth_4h import load_data, compute_signals
+import backtests.adx_adaptive_spot_eth_4h as mod
 
 WINDOW_MONTHS = 8
 STEP_MONTHS = 4

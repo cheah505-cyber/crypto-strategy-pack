@@ -2,8 +2,8 @@
 import sys
 sys.path.insert(0, ".")
 
-from backtests.adx_adaptive import load_data, compute_signals, run_backtest
-import backtests.adx_adaptive as mod
+from backtests.adx_adaptive_spot_eth_4h import load_data, compute_signals, run_backtest
+import backtests.adx_adaptive_spot_eth_4h as mod
 
 print("=== ATR Parameter Sensitivity ===")
 print(f"{'ATR':<10} {'Return':>8} {'MaxDD':>8} {'Sharpe':>8} {'PF':>8} {'Trades':>8} {'Excess':>8}")

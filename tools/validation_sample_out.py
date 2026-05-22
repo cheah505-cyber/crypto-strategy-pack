@@ -2,7 +2,7 @@
 import sys
 sys.path.insert(0, ".")
 
-from backtests.adx_adaptive import load_data, compute_signals, run_backtest
+from backtests.adx_adaptive_spot_eth_4h import load_data, compute_signals, run_backtest
 
 TRAIN_END = "2025-07-01"
 TEST_END = "2026-05-22"

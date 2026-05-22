@@ -3,7 +3,7 @@ import sys
 sys.path.insert(0, ".")
 
 import numpy as np
-from backtests.adx_perp import load_data, compute_signals, run_backtest
+from backtests.adx_adaptive_perp_eth_4h import load_data, compute_signals, run_backtest
 
 N_SIM = 1000
 np.random.seed(42)

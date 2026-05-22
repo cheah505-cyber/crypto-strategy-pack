@@ -3,7 +3,7 @@ import sys
 sys.path.insert(0, ".")
 
 import pandas as pd
-from backtests.adx_perp import load_data, compute_signals, run_backtest, DATA_PATH
+from backtests.adx_adaptive_perp_eth_4h import load_data, compute_signals, run_backtest, DATA_PATH
 
 # 2023-2026 期间 ETH 重大回撤窗口
 CRASH_WINDOWS = [

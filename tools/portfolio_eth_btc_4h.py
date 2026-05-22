@@ -4,10 +4,10 @@ sys.path.insert(0, ".")
 
 import numpy as np
 import pandas as pd
-from backtests.adx_perp import (
+from backtests.adx_adaptive_perp_eth_4h import (
     load_data, compute_signals, run_backtest, DATA_PATH, BTC_PATH
 )
-import backtests.adx_perp as mod
+import backtests.adx_adaptive_perp_eth_4h as mod
 
 # ── 1. 单币延迟测试 ──
 print("=" * 60)

@@ -5,11 +5,11 @@ sys.path.insert(0, ".")
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from backtests.adx_perp import (
+from backtests.adx_adaptive_perp_eth_4h import (
     load_data, compute_signals, run_backtest, DATA_PATH,
     FUNDING_RATE, ATR_TRAIL_MULT, ADX_TREND, ADX_RANGE
 )
-import backtests.adx_perp as mod
+import backtests.adx_adaptive_perp_eth_4h as mod
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
