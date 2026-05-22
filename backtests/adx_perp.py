@@ -17,10 +17,11 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = PROJECT_ROOT / "data" / "eth_usdt_4h.csv"
+BTC_PATH = PROJECT_ROOT / "data" / "btc_usdt_4h.csv"
 
 # 费用
 FEE = 0.0004          # 永续 taker 0.04%
-SLIPPAGE = 0.001      # 0.1% — 极端压力测试
+SLIPPAGE = 0.0002     # 0.02%
 FUNDING_RATE = 0.0000375  # 0.01%/8h → 0.00375%/4h bar
 
 # 杠杆
@@ -48,8 +49,9 @@ def exit_value(price: float) -> float:
     return price * (1 - SLIPPAGE) * (1 - FEE)
 
 
-def load_data() -> pd.DataFrame:
-    return pd.read_csv(DATA_PATH, parse_dates=["timestamp"], index_col="timestamp")
+def load_data(path: Path | None = None) -> pd.DataFrame:
+    p = path or DATA_PATH
+    return pd.read_csv(p, parse_dates=["timestamp"], index_col="timestamp")
 
 
 def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
@@ -354,8 +356,9 @@ def print_report(r: dict) -> None:
 
 
 def main() -> int:
-    logger.info("Loading data...")
-    df = load_data()
+    path = Path(sys.argv[1]) if len(sys.argv) > 1 else DATA_PATH
+    logger.info(f"Loading data: {path}")
+    df = load_data(path)
     df = compute_signals(df)
     results = run_backtest(df)
     print_report(results)
