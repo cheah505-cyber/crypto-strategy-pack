@@ -43,12 +43,15 @@ def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     rs = avg_gain / avg_loss.replace(0, np.nan)
     df["rsi"] = 100 - (100 / (1 + rs))
 
+    # 趋势过滤器：SMA200，只在趋势向上时做多
+    df["sma200"] = df["close"].rolling(200).mean()
+
     # 原始信号：1 = 买入, -1 = 卖出, 0 = 无信号
     raw = pd.Series(0.0, index=df.index)
-    raw[df["rsi"] < RSI_OVERSOLD] = 1.0
+    raw[(df["rsi"] < RSI_OVERSOLD) & (df["close"] > df["sma200"])] = 1.0
     raw[df["rsi"] > RSI_OVERBOUGHT] = -1.0
 
-    # Forward-fill: 保持上一个非零信号（跟 VT 完全一致）
+    # Forward-fill: 保持上一个非零信号
     df["signal"] = raw.replace(0.0, np.nan).ffill().fillna(0.0)
     return df
 
@@ -170,8 +173,8 @@ def print_report(r: dict) -> None:
         return
 
     print(f"\n{'='*60}")
-    print("VT RSI Strategy Replication — Binance Full Data 2023-2026")
-    print("RSI(14) < 35 BUY / RSI(14) > 65 SELL, Forward-Fill, No Stop")
+    print("VT RSI + SMA200 Trend Filter — Binance Full Data 2023-2026")
+    print("RSI(14)<35 + Price>SMA200 BUY / RSI(14)>65 SELL, No Stop")
     print(f"{'='*60}")
     print(f"  Total Return:         {r['total_return']:>+8.2f}%")
     print(f"  Annual Return:        {r['annual_return']:>+8.2f}%")
