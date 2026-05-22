@@ -37,8 +37,8 @@ RSI_OVERBOUGHT = 65
 MR_ATR_STOP_MULT = 3.5
 
 # 风控参数
-RISK_PER_TRADE = 0.02      # 每笔风险 2%
-MAX_POSITION_PCT = 0.50    # 单笔仓位上限 50%
+RISK_PER_TRADE = 0.04      # 每笔风险 4%
+MAX_POSITION_PCT = 1.0     # 无上限（纯 ATR 定仓）
 CB_MAX_LOSSES = 5          # 连续亏损熔断阈值
 CB_COOLDOWN_BARS = 24      # 熔断冷却期 (4 days)
 
