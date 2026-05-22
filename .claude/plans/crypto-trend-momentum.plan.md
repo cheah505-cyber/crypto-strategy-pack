@@ -41,7 +41,7 @@
 - [x] alpha101 bench 跑完，输出 IC 排名 → 结论：不兼容单币对
 - [x] 有效因子数量已判断（≥15 / 5-15 / <5） → <5，VT 退化为纯回测
 - [x] 校准结论写入 findings.md
-- [ ] git commit 存档
+- [x] git commit 存档 (d68771e)
 
 ### Phase 2 完成门禁
 - [x] 动量因子 IC 分析完成（≥3 个 lookback 窗口）→ 7因子×22组合
@@ -136,5 +136,5 @@
 - [x] Phase 2 至少 1 个因子通过 IC 验证（IC > 0.05, p < 0.05）
 - [x] Phase 2 完整回测报告含 7 项指标，交易 ≥ 10 次
 - [x] Phase 3 样本外夏普 ≥ 样本内 50% (59%)
-- [ ] 所有门禁 git commit 存档
-- [ ] Obsidian L1/L2 笔记写入（待 Obsidian 启动后写入）
+- [x] 所有门禁 git commit 存档 (d68771e)
+- [x] Obsidian L2 场景笔记写入 (记忆/场景/回测-ADX自适应永续-ETH-4h-2026-05.md)
