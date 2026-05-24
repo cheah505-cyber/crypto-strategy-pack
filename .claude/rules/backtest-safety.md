@@ -128,8 +128,17 @@
 
 回测结果或策略参数发生变更后，必须同步更新：
 
-- **auto-memory**：`crypto-strategy-adx-perp.md` 中的关键指标、验证状态、已知限制
-- **`loop/findings.md`**：追加发现条目
-- **新经验**：提炼为 `lessons-crypto.md` 条目
+| 目标 | 写入内容 | 类型 |
+|---|---|---|
+| auto-memory: `crypto-strategy-adx-perp.md` | 关键指标、验证状态、已知限制 | 原地覆盖 |
+| `loop/findings.md` | 追加发现条目 | 只追加 |
+| `lessons-crypto.md` | 可提炼的新教训 | 只追加（上限 20 条 → 归档见下文） |
 
 不做此步骤 → 下一次会话基于过期数据决策。每次 git commit 回测结果时附带 memory 更新。
+
+## Memory 归档
+
+auto-memory 是工作缓冲区，不是永久存储。长期知识的终点是 Obsidian vault。
+
+- **`lessons-crypto.md`**：上限 20 条。触及上限时，将已稳定（≥3 次被引用的）条目提升到 Obsidian `记忆/场景/` 或 `记忆/综合/`，从 memory 中移除。
+- **`loop/findings.md`**：每个策略 / 每条验证链完成后，将完整发现记录归档到 Obsidian `记忆/场景/`（L2），清空 `findings.md` 只保留最近 50 行摘要。
