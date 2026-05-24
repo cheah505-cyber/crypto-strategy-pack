@@ -24,15 +24,6 @@ data/          ← 市场数据 CSV
 loop/          ← 回测循环：tasks.json（任务队列）、findings.md（发现记录）、results/（报告输出）
 ```
 
-## 规则文件
-
-| 文件 | 内容 | 触发条件 |
-|---|---|---|
-| `.claude/rules/backtest-safety.md` | 前视偏差/过拟合/费用/Sanity Test | 涉及回测代码 |
-| `.claude/rules/hypothesis-testing.md` | 检验选择/效应量/决策框架/多重比较 | 涉及策略比较 |
-| `.claude/rules/strategy-validation.md` | 8 阶段验证管线 + 决策标准 | 涉及新策略 |
-| `.claude/rules/live-trading-discipline.md` | 10 条实盘铁律（含行为纪律） | 涉及实盘 |
-
 ## CCXT 约定
 
 - 统一交易所 API（统一返回值格式）
