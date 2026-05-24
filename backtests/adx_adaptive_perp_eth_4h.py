@@ -146,6 +146,18 @@ def _preflight(df: pd.DataFrame) -> None:
     violations = (~ohlc_ok).sum()
     assert violations == 0, f"{violations} OHLC logic violations in data"
 
+    # 5. 数据分割 — DatetimeIndex 严格单调递增，禁止 shuffle
+    assert isinstance(df.index, pd.DatetimeIndex), (
+        f"Index must be DatetimeIndex, got {type(df.index).__name__}. "
+        f"Data may have been shuffled or improperly loaded."
+    )
+    assert df.index.is_monotonic_increasing, (
+        "Timestamps not monotonically increasing. "
+        "Data has been shuffled — time-series order is mandatory."
+    )
+    dup_count = df.index.duplicated().sum()
+    assert dup_count == 0, f"{dup_count} duplicate timestamps found"
+
     logger.info(f"Preflight PASS: {len(sig_cols)} signals, "
                 f"{len(indicator_cols)} indicators, {len(df)} bars, {warmup}-bar warm-up")
 

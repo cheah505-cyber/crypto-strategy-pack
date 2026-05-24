@@ -11,6 +11,7 @@
 **每一个 `run_backtest()` 入口必须调用 `_preflight(df)`**，不通过则 `AssertionError`，回测不执行。`_preflight()` 检查：
 
 - 所有信号列和指标列存在
+- DatetimeIndex 严格单调递增、无重复（防 shuffle）
 - 预热期后信号列零 NaN（shift/rolling 缺陷的直接证据）
 - 信号列类型为布尔/整数（浮点信号可能携带未来信息泄露）
 - OHLC 逻辑一致性
