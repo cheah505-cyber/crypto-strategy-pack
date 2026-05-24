@@ -1,4 +1,5 @@
 """Diagnose why ADX Adaptive fails on 1h and daily but works on 4h."""
+
 from __future__ import annotations
 
 import sys
@@ -10,7 +11,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from backtests.adx_adaptive_perp_eth_4h import (
-    compute_signals, run_backtest, print_report,
+    compute_signals,
+    run_backtest,
+    print_report,
 )
 
 
@@ -34,8 +37,12 @@ def regime_distribution(df: pd.DataFrame, label: str) -> dict:
     fwd_12 = returns.shift(-12)
     fwd_24 = returns.shift(-24)
 
-    long_hitrate_4 = (fwd_4[df["long_sig"] & df["long_sig"].shift(1).fillna(False)] > 0).mean()
-    short_hitrate_4 = (fwd_4[df["short_sig"] & df["short_sig"].shift(1).fillna(False)] < 0).mean()
+    long_hitrate_4 = (
+        fwd_4[df["long_sig"] & df["long_sig"].shift(1).fillna(False)] > 0
+    ).mean()
+    short_hitrate_4 = (
+        fwd_4[df["short_sig"] & df["short_sig"].shift(1).fillna(False)] < 0
+    ).mean()
 
     return {
         "label": label,
@@ -48,8 +55,12 @@ def regime_distribution(df: pd.DataFrame, label: str) -> dict:
         "rsi_mean": round(df["rsi"].mean(), 1),
         "long_signals": int(long_sig),
         "short_signals": int(short_sig),
-        "long_4bar_hitrate": round(long_hitrate_4 * 100, 1) if not pd.isna(long_hitrate_4) else 0,
-        "short_4bar_hitrate": round(short_hitrate_4 * 100, 1) if not pd.isna(short_hitrate_4) else 0,
+        "long_4bar_hitrate": round(long_hitrate_4 * 100, 1)
+        if not pd.isna(long_hitrate_4)
+        else 0,
+        "short_4bar_hitrate": round(short_hitrate_4 * 100, 1)
+        if not pd.isna(short_hitrate_4)
+        else 0,
         "annual_vol": round(df["close"].pct_change().std() * np.sqrt(365.25 * 24), 4),
     }
 
@@ -79,9 +90,9 @@ def main() -> int:
         backtest_results[tf] = r
 
     # Diagnostic Report
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("  TIMEFRAME DIAGNOSTICS — Why only 4h works?")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     print(f"\n{'Metric':<28} {'1h':>12} {'4h':>12} {'1d':>12}")
     print("-" * 68)
@@ -100,7 +111,9 @@ def main() -> int:
         ("short_4bar_hitrate", "Short 4-bar hit rate %"),
     ]:
         vals = "  ".join(
-            f"{diagnostics[tf].get(key, 'N/A'):>12}" for tf in ["1h", "4h", "1d"] if tf in diagnostics
+            f"{diagnostics[tf].get(key, 'N/A'):>12}"
+            for tf in ["1h", "4h", "1d"]
+            if tf in diagnostics
         )
         print(f"  {label:<26} {vals}")
 
@@ -116,14 +129,16 @@ def main() -> int:
         ("profit_factor", "Profit Factor"),
     ]:
         vals = "  ".join(
-            f"{backtest_results[tf].get(key, 'N/A'):>12}" for tf in ["1h", "4h", "1d"] if tf in backtest_results
+            f"{backtest_results[tf].get(key, 'N/A'):>12}"
+            for tf in ["1h", "4h", "1d"]
+            if tf in backtest_results
         )
         print(f"  {label:<26} {vals}")
 
     # Root Cause Analysis
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("  ROOT CAUSE HYPOTHESES")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     diag_1h = diagnostics.get("1h", {})
     diag_4h = diagnostics.get("4h", {})
@@ -141,9 +156,15 @@ def main() -> int:
 
     # Hypothesis 2: Regime distribution
     print(f"\n  H2 — Regime distribution differs:")
-    print(f"    1h: {diag_1h.get('trend_pct', 0)}% trend, {diag_1h.get('range_pct', 0)}% range")
-    print(f"    4h: {diag_4h.get('trend_pct', 0)}% trend, {diag_4h.get('range_pct', 0)}% range")
-    print(f"    1d: {diag_1d.get('trend_pct', 0)}% trend, {diag_1d.get('range_pct', 0)}% range")
+    print(
+        f"    1h: {diag_1h.get('trend_pct', 0)}% trend, {diag_1h.get('range_pct', 0)}% range"
+    )
+    print(
+        f"    4h: {diag_4h.get('trend_pct', 0)}% trend, {diag_4h.get('range_pct', 0)}% range"
+    )
+    print(
+        f"    1d: {diag_1d.get('trend_pct', 0)}% trend, {diag_1d.get('range_pct', 0)}% range"
+    )
 
     # Hypothesis 3: Trade frequency
     for tf in ["1h", "4h", "1d"]:
@@ -151,8 +172,10 @@ def main() -> int:
             r = backtest_results[tf]
             if "error" not in r:
                 bars = diagnostics[tf]["bars"]
-                print(f"\n  H3 — {tf} trade frequency: {r['num_trades']} trades over "
-                      f"{bars:,} bars")
+                print(
+                    f"\n  H3 — {tf} trade frequency: {r['num_trades']} trades over "
+                    f"{bars:,} bars"
+                )
                 trades_per_month = r["num_trades"] / (bars / (30 * 6))
                 print(f"    ~{trades_per_month:.1f} trades/month")
 
