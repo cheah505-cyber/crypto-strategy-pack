@@ -38,3 +38,10 @@
 - 3 次改进后核心指标无实质提升
 
 每轮决策必须记录依据：观测数据 + 判断理由 + 下一步行动。
+
+## 闭环
+
+每阶段完成后，必须同步更新：
+- `loop/findings.md` — 追加阶段发现
+- auto-memory: `crypto-strategy-adx-perp.md` — 更新验证状态和指标
+- `lessons-crypto.md` — 如有可提炼的新教训
