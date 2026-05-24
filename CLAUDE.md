@@ -18,20 +18,10 @@ Python 3.12 + pandas + numpy + scikit-learn + PyTorch。交易所 CCXT (Binance)
 
 ```
 backtests/     ← 策略回测脚本（一个策略一个文件）
-  adx_adaptive_perp_eth_4h.py          ← 主力：ADX自适应永续 10x
-tools/         ← 数据/验证/因子工具
-  fetch_ohlcv.py                       ← Binance 数据拉取（分页+断点续传）
-  ohlcv_quality_checker.py            ← DQS 五维度质量评分
-  validation_*.py                      ← 蒙特卡洛/Walk-Forward/参数敏感性/样本外/极端行情
-  factor_combination_miner.py          ← 因子组合挖掘
-  factor_weight_optimizer.py           ← 因子权重优化
-  portfolio_eth_btc_4h.py             ← 组合回测
-strategies/    ← 因子/策略模块
-  momentum_factor.py
+tools/         ← 数据拉取、质量检查、验证、因子挖掘
+strategies/    ← 可复用的因子/策略模块
 data/          ← 市场数据 CSV
-loop/          ← 回测循环任务队列
-  tasks.json / findings.md / prompt.md / progress.json
-  results/     ← 回测报告输出
+loop/          ← 回测循环：tasks.json（任务队列）、findings.md（发现记录）、results/（报告输出）
 ```
 
 ## 规则文件
