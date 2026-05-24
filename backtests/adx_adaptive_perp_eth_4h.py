@@ -209,6 +209,8 @@ def run_backtest(df: pd.DataFrame) -> dict:
                 peak = max(peak, equity[-1])
                 max_dd = max(max_dd, (peak - equity[-1]) / peak)
                 consec_losses = consec_losses + 1 if ret <= 0 else 0
+                if consec_losses >= CB_MAX_LOSSES:
+                    cooldown_until = i + CB_COOLDOWN
                 pos_side = 0
                 continue
 
@@ -246,6 +248,8 @@ def run_backtest(df: pd.DataFrame) -> dict:
                 peak = max(peak, new_eq)
                 max_dd = max(max_dd, (peak - new_eq) / peak if peak > 0 else 0)
                 consec_losses = consec_losses + 1 if ret <= 0 else 0
+                if consec_losses >= CB_MAX_LOSSES:
+                    cooldown_until = i + CB_COOLDOWN
                 pos_side = 0
                 continue
 
@@ -314,9 +318,6 @@ def run_backtest(df: pd.DataFrame) -> dict:
         trades[-1]["return"] = ret
         trades[-1]["exit_time"] = df.index[-1]
         equity[-1] = max(entry_equity + pnl, 0.0001)
-
-    # ── 熔断逻辑（延迟检查，避免在循环中) ──
-    # Moved to post-hoc: count max consecutive in _summarize
 
     equity_series = pd.Series(equity[:len(df)], index=df.index)
     benchmark = df["close"] / df["close"].iloc[0]
