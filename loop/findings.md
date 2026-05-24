@@ -83,3 +83,15 @@
 - **Luna/3AC May-Jul 2022**: -1.1%, Sharpe -0.141, B&H -38.9% (excess +82.2 pp)
 - **FTX Nov-Dec 2022**: +8.8%, Sharpe 3.469, B&H -24.4% (excess +150.3 pp)
 - **Verdict: PASS** -- Strategy profitable across bear (+37.8%) and bull (+403.2%) regimes. All 4 crash windows show strategy massively outperforming B&H ETH, even when strategy itself has small losses. 0 liquidations across all periods. Bear Sharpe (0.24) is weak but positive -- performance degrades but does not flip negative. This reduces but does not eliminate regime overfitting concern.
+
+### 2026-05-25: Task 2 -- Timeframe Failure Root Cause
+
+- **1h**: +88.91%, Sharpe 0.635, Max DD -68.1%, Win rate 38.9%, PF 1.17, 396 trades, long hit rate 51.1%, short hit rate 54.5%
+- **4h**: +558.73%, Sharpe 0.822, Max DD -39.04%, Win rate 42.5%, PF 1.56, 226 trades, long hit rate 50.7%, short hit rate 55.0%
+- **1d**: -4.91%, Sharpe -0.048, Max DD -29.23%, Win rate 42.9%, PF 0.95, 21 trades, long hit rate 66.7%, short hit rate 20.0%
+- **H1 REJECTED** -- Signal hit rates nearly identical 1h vs 4h (51% both). Signal not decaying at higher frequency.
+- **H2 REJECTED** -- Regime distribution nearly identical 1h vs 4h (~35% trend, ~30% range). Not a regime mixing problem.
+- **H3 REJECTED** -- Trade frequency similar across timeframes (~2.5 trades/month). Not an overtrading problem.
+- **Root cause (1h)**: Higher noise at 1h causes lower win rate (38.9% vs 42.5%) and catastrophic max drawdown (-68.1% vs -39.0%). Same ATR stop distance (2.5x) is too loose for 1h noise -- false breakouts get stopped too late. The strategy generates positive returns but with unacceptable drawdown.
+- **Root cause (1d)**: Sample starvation -- only 21 trades over 1,238 bars (~3.4 years). Win rate is decent (42.9%) but profit factor 0.95 means 1-2 bad trades destroy returns. ADX regime signals need more bars than daily can provide in a 3-year window. Short side is particularly broken (20% hit rate, only 5 short trades).
+- **Implication**: ADX Adaptive framework is 4h-specific. Adapting to 1h requires tighter stops (1.5-2.0x ATR instead of 2.5x) and possibly a noise filter. Adapting to daily requires either: (a) longer history (5+ years minimum), (b) wider entry criteria to reduce false signals given low sample, or (c) accepting the framework simply doesn't generalize to daily. Not all strategies must work on all timeframes.
