@@ -95,3 +95,31 @@
 - **Root cause (1h)**: Higher noise at 1h causes lower win rate (38.9% vs 42.5%) and catastrophic max drawdown (-68.1% vs -39.0%). Same ATR stop distance (2.5x) is too loose for 1h noise -- false breakouts get stopped too late. The strategy generates positive returns but with unacceptable drawdown.
 - **Root cause (1d)**: Sample starvation -- only 21 trades over 1,238 bars (~3.4 years). Win rate is decent (42.9%) but profit factor 0.95 means 1-2 bad trades destroy returns. ADX regime signals need more bars than daily can provide in a 3-year window. Short side is particularly broken (20% hit rate, only 5 short trades).
 - **Implication**: ADX Adaptive framework is 4h-specific. Adapting to 1h requires tighter stops (1.5-2.0x ATR instead of 2.5x) and possibly a noise filter. Adapting to daily requires either: (a) longer history (5+ years minimum), (b) wider entry criteria to reduce false signals given low sample, or (c) accepting the framework simply doesn't generalize to daily. Not all strategies must work on all timeframes.
+
+### 2026-05-25: Task 3 -- Cross-Coin Generalization
+
+- **Note**: MATIC/USDT was delisted from Binance in Sep 2024. POL/USDT (replacement) only has data since Feb 2025 (3,712 rows, ~15 months). Substituted with ADA/USDT which has full history since 2019-06 (16,201 rows, ~7 years).
+- **Data fetched**: SOL/USDT (12,677 rows, from 2021-01), BNB/USDT (16,201 rows, from 2019-06), ADA/USDT (16,201 rows, from 2019-06). ETH/USDT (16,183 rows, from 2019-01), BTC/USDT (7,423 rows, from 2023-01).
+- **DQS scores**: SOL 99.9/100 PASS, BNB 99.9/100 PASS, ADA 99.9/100 PASS.
+
+**Per-coin results (full data range, 4h, 10x lev, same params):**
+
+| Coin | Return% | Sharpe | DD% | Trades | Win% | PF | Exc vs B&H (ann) | Liqs |
+|---|---|---|---|---|---|---|---|---|
+| ETH | +558.7 | 0.822 | -39.0 | 226 | 42.5 | 1.56 | -16.8pp | 0 |
+| BTC | +216.3 | 1.066 | -49.7 | 111 | 40.5 | 1.71 | -17.3pp | 0 |
+| SOL | +39.0 | 0.172 | -48.2 | 184 | 40.2 | 1.18 | -73.2pp | 0 |
+| BNB | +485.6 | 0.788 | -65.3 | 233 | 44.2 | 1.50 | -62.3pp | 0 |
+| ADA | +34.8 | 0.124 | -57.0 | 216 | 38.4 | 1.15 | -23.4pp | 0 |
+
+**Generalization Score**: 0/5 excess return positive, 5/5 Sharpe positive, 1/5 Sharpe >= 1.0, 0 total liquidations.
+
+**Verdict: WARN** -- Positive but with notable outliers -- coin selection matters.
+
+**Analysis**:
+- **Bright spot**: 5/5 coins positive total return, 5/5 positive Sharpe, 0 liquidations. The strategy does not blow up on any coin. Profit factors > 1.0 across the board. Win rates tightly clustered 38-44%. Signal logic does not break on altcoins.
+- **Pain point**: All coins underperform B&H in annualized excess. This is expected during 2019-2026 crypto mega-bull (SOL B&H +2806%, BNB B&H +11077%). The strategy is designed for risk-adjusted returns, not capturing full bull market beta.
+- **Tier differentiation**: BTC (Sharpe 1.07) and ETH/BNB (Sharpe 0.79-0.82) form a solid tier. SOL (0.17) and ADA (0.12) are significantly weaker. Lower-cap altcoins have more noise relative to signal -- ADX trend detection is less reliable on coins with higher volatility and less structured price action.
+- **Drawdown concern**: BNB max DD -65.3% is unacceptably high. The same 2.5x ATR stop is too loose for BNB's extreme volatility (108x B&H return implies large swings). Coin-specific ATR multipliers may improve results.
+- **Key insight**: Strategy profitability ranking (ETH > BNB > BTC > SOL > ADA) roughly follows market cap ranking of quality. The strategy works best on large-cap, liquid assets with deep order books and cleaner technical signals.
+- **No structural break**: Signal logic (ADX regime + Donchian breakout + RSI MR) generates positive PnL on all 5 coins. No coin flips to negative total return. This is NOT evidence of pure ETH overfitting -- it is evidence that the framework generalizes directionally but ETH happens to be the best-fit asset class for these specific parameters. Cross-coin adaptation (per-coin ATR calibration) would likely narrow the gap.
