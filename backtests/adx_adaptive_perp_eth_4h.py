@@ -80,7 +80,7 @@ def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     df["dc_low"] = l.rolling(DC_PERIOD).min()
 
     df["long_trend"] = c > df["dc_high"].shift(1)          # 突破做多
-    df["short_trend"] = c < df["dc_low"]                    # 跌破做空
+    df["short_trend"] = c < df["dc_low"].shift(1)          # 跌破做空（与 long_trend 对称，shift 防当前 bar low 泄露）
     df["long_mr"] = df["rsi"] < RSI_OVERSOLD                # 超卖做多
     df["short_mr"] = df["rsi"] > RSI_OVERBOUGHT             # 超买做空
 
@@ -108,7 +108,51 @@ def calc_contracts(equity: float, price: float, atr_val: float, leverage: float)
     return min(raw_value, lev_value) / price
 
 
+def _preflight(df: pd.DataFrame) -> None:
+    """强制前视偏差检查。不通过则 raise AssertionError，回测无法执行。"""
+    sig_cols = ["long_sig", "short_sig", "close_sig", "cover_sig",
+                "close_trend", "cover_trend", "long_trend", "short_trend",
+                "long_mr", "short_mr", "is_trend", "is_range"]
+    indicator_cols = ["adx", "rsi", "atr"]
+
+    # 1. 列存在
+    missing = [c for c in sig_cols + indicator_cols if c not in df.columns]
+    assert not missing, f"Missing columns: {missing}"
+
+    # 2. 信号列 NaN 检查 — 预热期后的 NaN 意味着 shift/rolling 缺陷
+    warmup = 30  # max(ADX=14, DC=20, ATR=14, RSI=14) + margin
+    post_warmup = df.iloc[warmup:]
+    for col in sig_cols:
+        nan_count = post_warmup[col].isna().sum()
+        assert nan_count == 0, (
+            f"{col}: {nan_count} NaN values after warm-up ({warmup} bars). "
+            f"Check shift()/rolling() alignment."
+        )
+
+    # 3. 信号列必须是布尔/整数（0/1），不允许浮点 leak
+    for col in sig_cols:
+        if df[col].dtype == bool or df[col].dtype in (np.dtype("int64"), np.dtype("int32")):
+            continue
+        unique = df[col].dropna().unique()
+        assert set(unique).issubset({0, 1, True, False}), (
+            f"{col}: non-boolean values {set(unique) - {0, 1, True, False}}. "
+            f"Float signals may carry forward-looking bias."
+        )
+
+    # 4. OHLC 逻辑一致性 — 基本数据质量
+    ohlc_ok = (df["high"] >= df[["open", "close", "low"]].max(axis=1)) & (
+        df["low"] <= df[["open", "close", "high"]].min(axis=1)
+    )
+    violations = (~ohlc_ok).sum()
+    assert violations == 0, f"{violations} OHLC logic violations in data"
+
+    logger.info(f"Preflight PASS: {len(sig_cols)} signals, "
+                f"{len(indicator_cols)} indicators, {len(df)} bars, {warmup}-bar warm-up")
+
+
 def run_backtest(df: pd.DataFrame) -> dict:
+    _preflight(df)
+
     trades: list[dict] = []
     pos_side: int = 0  # 1=long, -1=short, 0=none
     entry_price: float = 0.0
