@@ -97,8 +97,12 @@ def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+SANITY_MODE = False  # True → 1 contract, 1x, no risk sizing
+
 def calc_contracts(equity: float, price: float, atr_val: float, leverage: float) -> float:
     """计算合约张数: 风险/笔固定，波动大→仓位小。"""
+    if SANITY_MODE:
+        return 1.0 / price  # 1 unit of notional at current price
     if atr_val <= 0:
         atr_val = price * 0.02
     risk_amount = equity * RISK_PER_TRADE
@@ -422,11 +426,110 @@ def print_report(r: dict) -> None:
     print(f"{'='*60}\n")
 
 
+def _run_sanity(df_orig: pd.DataFrame) -> bool:
+    """Sanity tests: verify engine correctness, not strategy performance."""
+    import copy
+
+    warmup = 30
+    all_ok = True
+
+    # Enter sanity mode: 1 contract, no risk sizing, no stops
+    setattr(sys.modules[__name__], "SANITY_MODE", True)
+    saved = {}
+    for attr in ["ATR_TRAIL_MULT", "MR_ATR_STOP_MULT", "MAX_LEVERAGE"]:
+        saved[attr] = getattr(sys.modules[__name__], attr)
+    setattr(sys.modules[__name__], "ATR_TRAIL_MULT", 999.0)
+    setattr(sys.modules[__name__], "MR_ATR_STOP_MULT", 999.0)
+    setattr(sys.modules[__name__], "MAX_LEVERAGE", 1.0)
+
+    def _restore():
+        for attr, val in saved.items():
+            setattr(sys.modules[__name__], attr, val)
+        setattr(sys.modules[__name__], "SANITY_MODE", False)
+
+    # ── Test 1: Enter once, hold to end → PnL = price change minus costs ──
+    df = df_orig.copy()
+    for c in df.columns:
+        if c.endswith("_sig") or c.endswith("_trend") or c.endswith("_mr"):
+            df[c] = False
+    entry_bar = warmup
+    df.iloc[entry_bar, df.columns.get_loc("long_sig")] = True
+
+    r = run_backtest(df)
+    if "error" in r or r["num_trades"] != 1:
+        detail = r.get("error") or f"{r.get('num_trades', 0)} trades"
+        logger.error(f"SANITY FAIL: Hold-to-end: {detail}")
+        all_ok = False
+    else:
+        trade = r["trades"][0]
+        entry_px = df.iloc[entry_bar]["close"]
+        exit_px = df.iloc[-1]["close"]
+        expected_pct = (exit_value(exit_px) / entry_cost(entry_px) - 1) * 100
+        actual_pct = trade["return"] * 100
+        # funding accumulates over multi-year hold, allow 5% drift
+        if abs(actual_pct - expected_pct) > 5.0:
+            logger.warning(f"Sanity WARN: Hold PnL {actual_pct:+.2f}% vs manual {expected_pct:+.2f}%")
+        else:
+            logger.info(f"Sanity PASS: Hold-to-end PnL {actual_pct:+.2f}% = manual {expected_pct:+.2f}%")
+
+    # ── Test 2: All signals off → zero trades ──
+    df = df_orig.copy()
+    for c in df.columns:
+        if c.endswith("_sig") or c.endswith("_trend") or c.endswith("_mr"):
+            df[c] = False
+
+    r = run_backtest(df)
+    if "error" not in r:
+        if r["num_trades"] != 0:
+            logger.error(f"SANITY FAIL: Zero-signal executed {r['num_trades']} trades")
+            all_ok = False
+        else:
+            logger.info(f"Sanity PASS: Zero-signal → 0 trades")
+    elif r["error"] == "no trades":
+        logger.info("Sanity PASS: Zero-signal → no trades (expected)")
+    else:
+        logger.error(f"SANITY FAIL: Zero-signal unexpected error: {r['error']}")
+        all_ok = False
+
+    # ── Test 3: Single fixed trade → PnL matches manual calculation ──
+    df = df_orig.copy()
+    for c in df.columns:
+        if c.endswith("_sig") or c.endswith("_trend") or c.endswith("_mr"):
+            df[c] = False
+    entry_bar = warmup + 10
+    exit_bar = entry_bar + 48
+    df.iloc[entry_bar, df.columns.get_loc("long_sig")] = True
+    df.iloc[exit_bar, df.columns.get_loc("close_trend")] = True
+
+    r = run_backtest(df)
+    if r["num_trades"] != 1:
+        logger.error(f"SANITY FAIL: Fixed-trade executed {r['num_trades']} trades, expected 1")
+        all_ok = False
+    else:
+        trade = r["trades"][0]
+        entry_px = df.iloc[entry_bar]["close"]
+        exit_px = df.iloc[exit_bar]["close"]
+        expected_pct = (exit_value(exit_px) / entry_cost(entry_px) - 1) * 100
+        actual_pct = trade["return"] * 100
+        if abs(actual_pct - expected_pct) > 0.5:
+            logger.warning(f"Sanity WARN: Fixed-trade PnL {actual_pct:+.2f}% vs manual {expected_pct:+.2f}%")
+        else:
+            logger.info(f"Sanity PASS: Fixed-trade PnL {actual_pct:+.2f}% = manual {expected_pct:+.2f}%")
+
+    _restore()
+    return all_ok
+
+
 def main() -> int:
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else DATA_PATH
     logger.info(f"Loading data: {path}")
     df = load_data(path)
     df = compute_signals(df)
+
+    if not _run_sanity(df):
+        logger.error("Sanity tests FAILED — backtest results not trustworthy. Aborting.")
+        return 1
+
     results = run_backtest(df)
     print_report(results)
     return 0
