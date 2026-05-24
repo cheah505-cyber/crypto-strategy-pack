@@ -128,7 +128,7 @@ loop/          ← 回测循环任务队列
 
 ## 回测铁律
 
-来自全局规则 `~/.claude/rules/backtest-safety.md` + 本地规则 `.claude/rules/hypothesis-testing.md`：
+来自本地规则：
 
 - **禁止前视偏差** — 特征矩阵任何行不得包含该行之后的信息，用 `shift()` 确保
 - **时间顺序分割** — 训练/验证/测试严格按时间，禁止随机打乱
