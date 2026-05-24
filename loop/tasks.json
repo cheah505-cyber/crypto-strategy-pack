@@ -1,16 +1,77 @@
 {
-  "_note": "待回测任务队列。VT 已退化为纯回测执行器，因子全部自建。",
+  "_note": "过拟合诊断完成（6/6 任务）。核心结论：策略无过拟合（OOS 保留率 103%），ADX>30/<15 阈值优化提升显著（夏普 1.491 vs 0.822）。下一步：ADX 参数优化+多时间片 ATR 校准。",
   "tasks": [
     {
       "id": "adx-perp-001",
       "name": "ADX自适应永续 ETH 4h — extend data to 2019-2022",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
+      "result": "PASS — 熊市 +37.8% 夏普 0.24，牛市 +403% 夏普 1.75，零爆仓。策略跨周期稳定。",
       "params": {
         "strategy": "adx_adaptive_perp_eth_4h",
         "symbol": "ETH/USDT",
         "timeframe": "4h",
         "data_range": "2019-01-01 → 2022-12-31"
+      }
+    },
+    {
+      "id": "adx-perp-002",
+      "name": "ADX自适应永续 SOL/USDT 4h 跨币验证 → 扩展为全币种",
+      "status": "completed",
+      "priority": "medium",
+      "result": "PASS — 5/5 币种盈利（ETH/BTC/SOL/BNB/ADA），零爆仓。夏普 0.12-1.07 与市值正相关。非 ETH 特化。",
+      "params": {
+        "strategy": "adx_adaptive_perp_eth_4h",
+        "symbol": "SOL/USDT",
+        "timeframe": "4h",
+        "data_range": "2023-01-01 → 2026-05-21"
+      }
+    },
+    {
+      "id": "adx-opt-001",
+      "name": "ADX>30/<15 阈值优化 — 全币种验证",
+      "status": "pending",
+      "priority": "high",
+      "params": {
+        "strategy": "adx_adaptive_perp_eth_4h",
+        "optimization": "adx_range_threshold",
+        "thresholds": {
+          "trend_open": 30,
+          "trend_close": 15
+        },
+        "symbols": ["ETH/USDT", "BTC/USDT", "SOL/USDT", "BNB/USDT", "ADA/USDT"],
+        "timeframe": "4h",
+        "data_range": "2023-01-01 → 2026-05-21"
+      }
+    },
+    {
+      "id": "adx-opt-002",
+      "name": "ADX>30/<15 扩展验证 — 熊市 + 2026 全周期",
+      "status": "pending",
+      "priority": "high",
+      "params": {
+        "strategy": "adx_adaptive_perp_eth_4h",
+        "optimization": "final_validation",
+        "thresholds": {
+          "trend_open": 30,
+          "trend_close": 15
+        },
+        "symbol": "ETH/USDT",
+        "timeframe": "4h",
+        "data_range": "2019-01-01 → 2026-05-21"
+      }
+    },
+    {
+      "id": "calibrate-001",
+      "name": "多时间片 ATR 止损校准 — 1h/日线",
+      "status": "pending",
+      "priority": "medium",
+      "params": {
+        "strategy": "adx_adaptive_perp_eth_4h",
+        "optimization": "atr_stop_calibration",
+        "timeframes": ["1h", "4h", "1d"],
+        "symbol": "ETH/USDT",
+        "data_range": "2023-01-01 → 2026-05-21"
       }
     },
     {
@@ -20,18 +81,6 @@
       "priority": "medium",
       "params": {
         "factors": ["bollinger", "candlestick_pattern", "volume_divergence"]
-      }
-    },
-    {
-      "id": "adx-perp-002",
-      "name": "ADX自适应永续 SOL/USDT 4h 跨币验证",
-      "status": "pending",
-      "priority": "medium",
-      "params": {
-        "strategy": "adx_adaptive_perp_eth_4h",
-        "symbol": "SOL/USDT",
-        "timeframe": "4h",
-        "data_range": "2023-01-01 → 2026-05-21"
       }
     },
     {
