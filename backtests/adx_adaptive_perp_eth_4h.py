@@ -384,6 +384,8 @@ def _summarize(equity: pd.Series, benchmark: pd.Series, trades: list[dict], df: 
         "max_holding_hours": round(max(holding_hours), 1) if holding_hours else 0,
         "avg_holding_hours": round(np.mean(holding_hours), 1) if holding_hours else 0,
         "equity_curve": equity, "trades": completed,
+        "data_start": str(df.index[0]), "data_end": str(df.index[-1]),
+        "data_bars": len(df),
     }
 
 
@@ -391,8 +393,16 @@ def print_report(r: dict) -> None:
     if "error" in r:
         print(f"ERROR: {r['error']}"); return
     print(f"\n{'='*60}")
-    print(f"ADX Adaptive + Perps {MAX_LEVERAGE:.0f}x Lev — 4h 2023-2026")
-    print(f"Risk={RISK_PER_TRADE*100:.0f}%/trade | Funding={FUNDING_RATE*100:.4f}%/bar")
+    print(f"ADX Adaptive + Perps {MAX_LEVERAGE:.0f}x Lev — 4h")
+    print(f"{'='*60}")
+    print(f"  Strategy Params:")
+    print(f"    ADX: period={ADX_PERIOD} trend>{ADX_TREND} range<{ADX_RANGE}")
+    print(f"    Donchian: {DC_PERIOD}  |  RSI: {RSI_PERIOD} ({RSI_OVERSOLD}/{RSI_OVERBOUGHT})")
+    print(f"    ATR trail: {ATR_TRAIL_MULT}x  |  MR hard stop: {MR_ATR_STOP_MULT}x")
+    print(f"  Costs & Risk:")
+    print(f"    Fee={FEE*100:.2f}%  Slippage={SLIPPAGE*100:.2f}%  Funding={FUNDING_RATE*100:.4f}%/bar")
+    print(f"    Risk={RISK_PER_TRADE*100:.0f}%/trade  Lev={MAX_LEVERAGE:.0f}x  CB={CB_MAX_LOSSES}L/{CB_COOLDOWN}bar")
+    print(f"    Liq threshold={LIQ_THRESHOLD*100:.0f}%")
     print(f"{'='*60}")
     print(f"  Total Return:         {r['total_return']:>+8.2f}%")
     print(f"  Annual Return:        {r['annual_return']:>+8.2f}%")
@@ -408,6 +418,7 @@ def print_report(r: dict) -> None:
     print()
     print(f"  Benchmark (B&H ETH):  {r['benchmark_return']:>+8.2f}%")
     print(f"  Excess over B&H:      {r['excess_return']:>+8.2f}%")
+    print(f"  Data: {r.get('data_start', 'N/A')} — {r.get('data_end', 'N/A')} ({r.get('data_bars', 'N/A')} bars)")
     print(f"{'='*60}\n")
 
 
