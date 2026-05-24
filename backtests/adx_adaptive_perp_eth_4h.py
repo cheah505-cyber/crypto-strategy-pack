@@ -195,12 +195,10 @@ def run_backtest(df: pd.DataFrame) -> dict:
             margin = (contracts * price) / MAX_LEVERAGE
             if equity[-1] <= 0 or (margin > 0 and equity[-1] < margin * (1 - LIQ_THRESHOLD)):
                 # Liquidation
-                exit_px = exit_value(price)
-                invested = entry_price * contracts
-                if pos_side == 1:  # long
-                    pnl = (exit_px - entry_price) * contracts
-                else:  # short
-                    pnl = (entry_price - exit_px) * contracts
+                if pos_side == 1:  # long: sell to close
+                    pnl = (exit_value(price) - entry_price) * contracts
+                else:  # short: buy to cover
+                    pnl = (entry_price - entry_cost(price)) * contracts
                 ret = pnl / entry_equity
                 trades[-1]["exit_reason"] = "liquidated"
                 trades[-1]["exit_price"] = price

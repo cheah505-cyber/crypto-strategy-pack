@@ -21,7 +21,9 @@ def load_csv(path: str) -> pd.DataFrame:
     return pd.read_csv(path, parse_dates=["timestamp"], index_col="timestamp")
 
 
-def regime_distribution(df: pd.DataFrame, label: str) -> dict:
+ANNUALIZERS = {"1h": np.sqrt(365.25 * 24), "4h": np.sqrt(365.25 * 6), "1d": np.sqrt(365.25)}
+
+def regime_distribution(df: pd.DataFrame, label: str, tf: str = "4h") -> dict:
     """Compute regime distribution: % trend, % range, % transition."""
     trend_pct = df["is_trend"].mean() * 100
     range_pct = df["is_range"].mean() * 100
@@ -61,7 +63,7 @@ def regime_distribution(df: pd.DataFrame, label: str) -> dict:
         "short_4bar_hitrate": round(short_hitrate_4 * 100, 1)
         if not pd.isna(short_hitrate_4)
         else 0,
-        "annual_vol": round(df["close"].pct_change().std() * np.sqrt(365.25 * 24), 4),
+        "annual_vol": round(df["close"].pct_change().std() * ANNUALIZERS.get(tf, np.sqrt(365.25 * 6)), 4),
     }
 
 
@@ -83,7 +85,7 @@ def main() -> int:
         df = load_csv(str(path))
         df = compute_signals(df)
 
-        diagnostics[tf] = regime_distribution(df, tf)
+        diagnostics[tf] = regime_distribution(df, tf, tf=tf)
 
         # Run backtest
         r = run_backtest(df)

@@ -32,7 +32,7 @@ REQUEST_DELAY = 0.25       # 请求间隔秒数（保守）
 def get_exchange() -> ccxt.Exchange:
     api_key = os.getenv("BINANCE_API_KEY", "")
     secret = os.getenv("BINANCE_SECRET", "")
-    config: dict = {"enableRateLimit": True, "options": {"defaultType": "spot"}}
+    config: dict = {"enableRateLimit": True, "timeout": 30000, "options": {"defaultType": "spot"}}
     if api_key and secret:
         config["apiKey"] = api_key
         config["secret"] = secret

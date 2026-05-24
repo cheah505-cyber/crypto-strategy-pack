@@ -26,14 +26,15 @@ ADX_GRID = [(30, 20), (25, 20), (30, 15), (25, 15)]
 
 
 def run_params(df, atr_m, adx_hi, adx_lo):
-    """Shallow import patching to test params."""
+    """Shallow import patching to test params. Recomputes signals per param set."""
     import backtests.adx_adaptive_perp_eth_4h as mod
 
     mod.ATR_TRAIL_MULT = atr_m
     mod.MR_ATR_STOP_MULT = atr_m + 1.0
     mod.ADX_TREND = adx_hi
     mod.ADX_RANGE = adx_lo
-    r = mod.run_backtest(df.copy())
+    df = mod.compute_signals(df.copy())
+    r = mod.run_backtest(df)
     if "error" in r or r["num_trades"] < MIN_TRADES:
         return None
     return r
