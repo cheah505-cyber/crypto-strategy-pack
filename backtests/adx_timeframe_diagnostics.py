@@ -39,6 +39,9 @@ def regime_distribution(df: pd.DataFrame, label: str, tf: str = "4h") -> dict:
     fwd_12 = returns.shift(-12)
     fwd_24 = returns.shift(-24)
 
+    # Hit rate on continuation bars (signal already active), not entry timing.
+    # .shift(1).fillna(False) drops the first bar of each signal block where
+    # shift produces NaN; this measures "being in a signal" quality.
     long_hitrate_4 = (
         fwd_4[df["long_sig"] & df["long_sig"].shift(1).fillna(False)] > 0
     ).mean()
