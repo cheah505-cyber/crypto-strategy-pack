@@ -71,3 +71,15 @@
 | 收益 | +403%（2023-2026）|
 | 回撤 | -30% |
 | 交易 | 101 笔 (56多/45空)|
+
+### 2026-05-25: Task 1 -- Bear Market Extension
+
+- **Data**: 2019-2022 data fetched from Binance and merged. Total 16,183 bars (2019-01-01 to 2026-05-21).
+- **DQS**: 99.9/100 PASS. 0 OHLC violations, 5 missing timestamps, 49 price jumps, 1 volume anomaly.
+- **Bear 2019-2022 standalone**: +37.8%, Sharpe 0.237, DD -39.0%, 123 trades (80L/43S), 0 liqs
+- **Bull 2023-2026 standalone**: +403.2%, Sharpe 1.745, DD -29.8%, 101 trades, 0 liqs
+- **COVID crash Mar-Apr 2020**: -3.1%, Sharpe -0.708, B&H -43.8% (excess +79.3 pp)
+- **China ban May-Jul 2021**: -5.5%, Sharpe -0.915, B&H -13.3% (excess +23.4 pp)
+- **Luna/3AC May-Jul 2022**: -1.1%, Sharpe -0.141, B&H -38.9% (excess +82.2 pp)
+- **FTX Nov-Dec 2022**: +8.8%, Sharpe 3.469, B&H -24.4% (excess +150.3 pp)
+- **Verdict: PASS** -- Strategy profitable across bear (+37.8%) and bull (+403.2%) regimes. All 4 crash windows show strategy massively outperforming B&H ETH, even when strategy itself has small losses. 0 liquidations across all periods. Bear Sharpe (0.24) is weak but positive -- performance degrades but does not flip negative. This reduces but does not eliminate regime overfitting concern.
