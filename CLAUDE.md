@@ -54,18 +54,6 @@ loop/          ← 回测循环任务队列
 
 见 auto-memory：`lessons-crypto.md`（方法论/风控/验证/工程 4 类 15 条）。
 
-## 当前状态
+## 当前状态与待办
 
-| 策略 | 状态 | 指标 |
-|---|---|---|
-| ADX 自适应永续 ETH 4h | **LIVE READY** | 夏普 0.73 (全周期), 0 强平 (6年) |
-
-**20/20 验证通过**（14 原始 + 6 过拟合审查）。数据 2019-2026 (16,183 bar)，5 币种跨币通过。
-`dc_low.shift(1)` 修复后收益 +554%，年化 +29%，回撤 -40%，交易 289 笔。
-
-**待优化：**
-1. ADX 区间阈值 <15 替代 <20（+81% 夏普提升空间）
-2. 按时框校准 ATR 参数（1h）
-3. 低市值币种流动性过滤
-
-详细报告：`loop/results/overfit-assessment-2026-05-25.md`
+见 auto-memory：`crypto-strategy-adx-perp.md` + `loop/tasks.json`。过拟合审查报告：`loop/results/overfit-assessment-2026-05-25.md`。
