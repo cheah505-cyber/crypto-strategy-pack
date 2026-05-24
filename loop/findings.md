@@ -150,3 +150,13 @@
 - **Cost drag**: 0.12% per round-trip trade at 2.2 trades/month. Negligible.
 - **Primary degradation driver**: No Sharpe degradation detected after bear data merge. The original 0.60->0.35 was a bull-only training artifact -- training exclusively on 2023-2026 bull market made the strategy look less robust OOS. With full 2019-2026 data including two bear markets, the strategy's OOS Sharpe (0.845) exceeds its IS Sharpe (0.820). The strategy generalizes better when trained through diverse regimes.
 - **Key insight**: The apparent "Sharpe degradation" was itself a symptom of insufficient training regime diversity, not a failure of the strategy. This validates the Task 1 bear data extension approach.
+
+### 2026-05-25: Task 6 -- Parameter Generalization
+
+- **Optimal ADX trend across configs**: 20-40 (mean=30, std=8)
+- **Best Sharpe range**: 0.143-1.984
+- **Configs with Sharpe > 0**: 6/6
+- **Verdict: WARN** -- Moderate ADX variation (std=8). Some asset/tf sensitivity but within bounds.
+- **ETH 4h full grid top 3**: (1) ADX>30/<15 Sharpe 1.491, (2) ADX>20/<10 Sharpe 1.304, (3) ADX>20/<15 Sharpe 1.252
+- **Per-config optimal**: ETH 4h ADX>30/<15 (1.491), BTC 4h ADX>40/<25 (1.984), ETH 1h ADX>35/<20 (0.984), ETH 1d ADX>35/<20 (0.143), SOL 4h ADX>20/<10 (0.552), BNB 4h ADX>20/<15 (1.326)
+- **Key finding**: The default ADX>30/<20 (Sharpe 0.822) is NOT the best for ETH 4h -- ADX>30/<15 (Sharpe 1.491) outperforms by 81%. The range threshold is more sensitive than the trend threshold. BTC prefers a much higher trend threshold (40) while SOL/BNB prefer lower (20). All 6/6 configs produce positive Sharpe, confirming directional generalization. The fix (re-running `compute_signals()` inside the parameter loop) resolves the pre-computed signal bug identified in Task 4 -- results now properly reflect ADX parameter changes.
