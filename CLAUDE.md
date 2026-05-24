@@ -6,7 +6,7 @@
 Vibe-Trading (回测引擎)  →  Crypto 项目 (因子研发+验证+决策)  →  Obsidian (知识沉淀)
 ```
 
-- **VT**: CCXT 拉数据、7 引擎回测、蒙特卡洛、Walk-Forward、产出报告
+- **VT**: 回测引擎（可用时优先调用）。不可用时直接写 Python 回测脚本，逻辑等效
 - **Crypto**: 读 VT 报告、假设检验（p 值+效应量+置信区间）、因子开发、参数决策
 - **Obsidian**: 知识沉淀
 
