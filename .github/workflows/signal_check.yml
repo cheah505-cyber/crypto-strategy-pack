@@ -1,0 +1,36 @@
+name: Signal Check
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install pandas numpy ccxt
+
+      - name: Update data
+        run: python tools/fetch_ohlcv.py --symbol ETH/USDT --timeframe 4h
+
+      - name: Check signals
+        run: python tools/manual_signal.py > output.txt
+
+      - name: Send Telegram
+        if: always()
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MSG=$(grep -A5 "TELEGRAM" output.txt | head -10)
+          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            -d chat_id="${CHAT}" \
+            -d text="[ETH 4h] $(date -u '+%H:%M UTC')
+$(echo "$MSG")" > /dev/null
