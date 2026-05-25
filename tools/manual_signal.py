@@ -63,8 +63,8 @@ print()
 # ── 检查是否有新信号 ──
 new_long = bool(recent.iloc[-1]["long_sig"]) and not any(recent.iloc[:-1]["long_sig"])
 new_short = bool(recent.iloc[-1]["short_sig"]) and not any(recent.iloc[:-1]["short_sig"])
-in_long = bool(current.get("close_sig", False)) or bool(current.get("close_trend", False))
-in_short = bool(current.get("cover_sig", False)) or bool(current.get("cover_trend", False))
+close_long = bool(current.get("close_sig", False)) or bool(current.get("close_trend", False))
+close_short = bool(current.get("cover_sig", False)) or bool(current.get("cover_trend", False))
 
 # 持仓状态（简易：最后3根是否有入场信号且未被平仓）
 signal_cols = ["long_sig", "short_sig", "close_sig", "cover_sig", "close_trend", "cover_trend"]
@@ -93,9 +93,18 @@ elif new_short:
     print(f"    操作: Binance 合约 → 开空 {pos_size:.4f} ETH → 设止损 ${stop:.2f}")
 else:
     # 检查是否持仓中
+    has_close_signal = close_long or close_short
     last_long = (df["long_sig"] & ~df["close_sig"] & ~df["close_trend"]).iloc[-20:].any()
     last_short = (df["short_sig"] & ~df["cover_sig"] & ~df["cover_trend"]).iloc[-20:].any()
-    if last_long:
+    if has_close_signal:
+        print(f"  [信号] 平仓!")
+        if close_long:
+            print(f"    平多做空信号")
+        if close_short:
+            print(f"    平空做多信号")
+        print(f"    当前价: ${last_price:.2f}")
+        print(f"    操作: Binance 合约 → 平仓")
+    elif last_long:
         trail = last_price - atr * strat_mod.ATR_TRAIL_MULT
         print(f"  [持仓] 做多中")
         print(f"    跟踪止损: ${trail:.2f}")
@@ -114,10 +123,13 @@ print(f"  ETH 周变化: {((df['close'].iloc[-1] / df['close'].iloc[-43] - 1) * 
 
 # 输出简洁版给 Telegram
 print("---TELEGRAM---")
-if new_long:
-    print(f"做多信号! 价格 ${last_price:.0f} 止损 ${(last_price-atr*strat_mod.ATR_TRAIL_MULT):.0f}")
+if close_long or close_short:
+    side = "平多做空" if close_long else "平空做多"
+    print(f"平仓信号! {side} 当前 ${last_price:.0f}")
+elif new_long:
+    print(f"做多信号! 入场 ${last_price:.0f} 止损 ${(last_price-atr*strat_mod.ATR_TRAIL_MULT):.0f}")
 elif new_short:
-    print(f"做空信号! 价格 ${last_price:.0f} 止损 ${(last_price+atr*strat_mod.ATR_TRAIL_MULT):.0f}")
+    print(f"做空信号! 入场 ${last_price:.0f} 止损 ${(last_price+atr*strat_mod.ATR_TRAIL_MULT):.0f}")
 elif last_long:
     print(f"做多持仓中 当前 ${last_price:.0f}")
 elif last_short:
