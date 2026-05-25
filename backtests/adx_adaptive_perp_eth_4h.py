@@ -25,7 +25,7 @@ BTC_PATH = PROJECT_ROOT / "data" / "btc_usdt_4h.csv"
 # 费用 (统一从 constants.py 导入)
 FEE = C.FEE_TAKER            # Binance USDT-M taker VIP 0 (0.05%)
 SLIPPAGE = C.SLIPPAGE        # 0.02%
-FUNDING_RATE = 0.0000375     # 0.01%/8h → 0.00375%/4h bar (策略固有)
+FUNDING_RATE = C.FUNDING_RATE_4H  # 0.006531%/4h (Binance 6.5年真实均值)
 
 # 杠杆
 MAX_LEVERAGE = C.MAX_LEVERAGE

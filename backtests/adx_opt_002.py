@@ -57,7 +57,7 @@ def configure_params() -> None:
     mod.ADX_RANGE = ADX_LO
     mod.FEE = 0.0005  # Binance USDT-M taker 0.05%
     mod.SLIPPAGE = 0.0002
-    mod.FUNDING_RATE = 0.0000375
+    mod.FUNDING_RATE = 0.00006531  # Binance 6.5yr mean 0.013%/8h
     mod.MAX_LEVERAGE = 10.0
     mod.ATR_TRAIL_MULT = 2.5
     mod.MR_ATR_STOP_MULT = 3.5

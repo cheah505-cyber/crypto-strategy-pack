@@ -19,10 +19,12 @@ FEE_SPOT  = 0.001       # 0.1% — spot trading
 # Slippage — conservative estimate for ETH 4h on Binance
 SLIPPAGE = 0.0002       # 0.02%
 
-# Funding rate — ETH USDT-M perpetual long-term average
-# 8h funding period: ~0.015% average → per-bar equivalents:
-FUNDING_RATE_4H = 0.000025     # 0.0025%/4h bar
-FUNDING_RATE_1H = 0.00000625   # 0.000625%/1h bar
+# Funding rate — ETH USDT-M perpetual (Binance, 2019-11 → 2026-05)
+# 7,113 records, mean 0.013062%/8h, median 0.010000%/8h.
+# 86.4% positive. P99: 0.136%/8h (bull extremes can be 10x mean).
+FUNDING_RATE_8H = 0.00013062    # 0.013062%/8h (true mean from 6.5 yr data)
+FUNDING_RATE_4H = 0.00006531    # 0.006531%/4h bar
+FUNDING_RATE_1H = 0.00001633    # 0.001633%/1h bar
 
 # Combined entry cost (taker entry = fee + slippage)
 # For strategies that always hit the order book (market orders)
