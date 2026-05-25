@@ -1,17 +1,17 @@
 [
   {
-    "task_id": "example-01",
+    "task_id": "calibrate-001",
     "completed": true,
-    "timestamp": "placeholder",
+    "timestamp": "2026-05-25",
     "summary": {
-      "total_return": null,
-      "annual_return": null,
-      "max_drawdown": null,
-      "sharpe_ratio": null,
-      "calmar_ratio": null,
-      "num_trades": null,
-      "win_rate": null,
-      "notes": "示例模板，实际任务完成后会填充真实数据"
+      "total_return": 1649.2,
+      "annual_return": 47.3,
+      "max_drawdown": 38.2,
+      "sharpe_ratio": 1.303,
+      "calmar_ratio": 1.238,
+      "num_trades": 194,
+      "win_rate": 45.4,
+      "notes": "4h ATR=2.50x confirmed optimal on full 2019-2026 cycle. 1h ATR=4.20x (DD 56%). 1d FAIL. Bull-only calibration was misleading; full-cycle validation confirmed 2.5x as optimal. Updated parameters: ADX_RANGE=15 (from adx-opt-002), ATR unchanged at 2.5x."
     }
   }
 ]

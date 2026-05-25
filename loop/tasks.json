@@ -65,9 +65,10 @@
     },
     {
       "id": "calibrate-001",
-      "name": "多时间片 ATR 止损校准 — 1h/日线",
-      "completed": false,
+      "name": "多时间片 ATR 止损校准 — 1h/4h/1d",
+      "completed": true,
       "priority": "medium",
+      "result": "WARN: 4h ATR=2.5x confirmed optimal (Sharpe 1.303 full-cycle), 1h ATR=4.20x (DD 56%), 1d FAIL. Bull-only calibration was misleading — full-cycle validation found 2.5x already optimal. No ATR parameter change needed.",
       "params": {
         "strategy": "adx_adaptive_perp_eth_4h",
         "optimization": "atr_stop_calibration",

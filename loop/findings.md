@@ -190,3 +190,36 @@
   3. **Drawdown**: Max DD reduces across both regimes because trend-following exits are more disciplined (Donchian breakouts vs RSI-based reversals)
 - **Implication**: ADX>30/<15 is confirmed as the optimal ETH 4h configuration. Can be moved from "experimental" to "baseline" status. Next tasks (ATR calibration, timeframe extension) should use this as the new default.
 
+### 2026-05-25: Task calibrate-001 — Multi-Timeframe ATR Stop Calibration
+
+- **Config**: ADX_TREND=30, ADX_RANGE=15, ETH/USDT, ATR grid [1.0-4.0] + fine grid
+- **Data**: 2019-01-01 -> 2026-05-21 (full cycle for 4h); 2023-01-01 -> 2026-05-21 (1h/1d)
+- **WARNING**: Initial calibration on 2023-2026 ONLY (bull market) produced spurious ATR=1.20x recommendation. Full-cycle calibration is mandatory.
+
+**4h: PASS — ATR=2.50x confirmed optimal on full 2019-2026 cycle**
+- Full-cycle grid: ATR=2.50x Sharpe 1.303, Ret +1,649.2%, DD 38.2%, 194 trades, PF 2.01, 0 liqs
+- Fine grid: 2.40x marginal improvement (Sharpe 1.324, +1.6%) — not worth changing
+- Tight stops (1.0-1.5x) degrade significantly in bear market (DD 62-72%, Sharpe < 0.5)
+- The prior ADX>30/<15 bull-only calibration (adx-opt-002) used 2.5x, which is already the optimal
+- **Recommendation**: Keep ATR_TRAIL_MULT=2.5x. The 2.40x improvement (+1.6%) is statistically insignificant.
+- **Methodological lesson**: Bull-only calibration produced misleading ATR=1.20x recommendation. Full-cycle (bear + bull) is mandatory for parameter optimization.
+
+**1h: WARN — ATR=4.20x optimal (Sharpe 1.523, DD 56.0%)**
+- Hypothesis refuted: expected tighter stops (1.0-2.0x), found wider (4.2x) works best
+- ATR 1.0-2.0x ALL produce negative Sharpe — tighter stops cause death-by-papercut in noisy 1h data
+- Despite positive Sharpe, 56% drawdown too high for standalone deployment
+- **Verdict**: 1h usable as secondary confirmation only; not for standalone deployment
+
+**1d: FAIL — No profitable configuration exists**
+- Best ATR=3.60x: Sharpe 0.007, Ret +0.6%, PF 1.14, only 12 trades over 3.4 years
+- Confirms earlier finding: ADX adaptive framework doesn't work on daily timeframe
+- **Verdict**: Remove from consideration
+
+**Parameter table (final after calibrate-001):**
+| Parameter | Old | New |
+|---|---|---|
+| ADX_TREND | 30 | 30 (unchanged) |
+| ADX_RANGE | 20 | 15 (from adx-opt-002) |
+| ATR_TRAIL_MULT | 2.5x | **2.5x (confirmed optimal, no change)** |
+| MR_ATR_STOP_MULT | 3.5x | 3.5x (no change, not tested independently) |
+
