@@ -8,15 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
-      BINANCE_SECRET: ${{ secrets.BINANCE_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install pandas numpy ccxt
-      - run: python tools/fetch_ohlcv.py --symbol ETH/USDT --timeframe 4h
+      - run: pip install pandas numpy
       - run: python tools/manual_signal.py > output.txt
       - name: Send Telegram
         if: always()

@@ -32,13 +32,12 @@ REQUEST_DELAY = 0.25       # 请求间隔秒数（保守）
 def get_exchange() -> ccxt.Exchange:
     api_key = os.getenv("BINANCE_API_KEY", "")
     secret = os.getenv("BINANCE_SECRET", "")
-    config: dict = {"enableRateLimit": True, "timeout": 30000, "options": {"defaultType": "spot"}}
-    if api_key and secret:
-        config["apiKey"] = api_key
-        config["secret"] = secret
-        logger.info("使用 Binance API 密钥（更高频率限制）")
-    else:
-        logger.info("无 API 密钥，使用公共端点（频率限制较低）")
+    # 只用公共端点 - 拉 OHLCV 不需要 API Key，且 API Key 会触发受限 SAPI 调用
+    config: dict = {
+        "enableRateLimit": True, "timeout": 30000,
+        "options": {"defaultType": "spot"},
+    }
+    logger.info("使用公共端点获取 OHLCV 数据")
     return ccxt.binance(config)
 
 
