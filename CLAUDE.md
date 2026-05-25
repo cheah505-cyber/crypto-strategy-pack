@@ -24,12 +24,31 @@ data/          ← 市场数据 CSV
 loop/          ← 回测循环：tasks.json（任务队列）、findings.md（发现记录）、results/（报告输出）
 ```
 
-## CCXT 约定
+## 交易所约定
 
-- 统一交易所 API（统一返回值格式）
-- 订单操作带重试和错误处理
-- 测试网和主网配置分离
-- API 密钥从环境变量读取（BINANCE_API_KEY, BINANCE_SECRET）
+- **交易所**: Binance（所有策略默认 Binance）
+- **产品**: USDT-M 永续合约（永续策略默认 USDT-M）
+
+### 费用常量（所有策略统一引用）
+
+永续策略从 `utils/constants.py` 导入，禁止手写：
+
+```python
+# Binance USDT-M 永续合约 VIP 0 (标准用户)
+FEE_MAKER = 0.0002   # 0.02% maker
+FEE_TAKER = 0.0005   # 0.05% taker  ← 全 taker 策略默认用这个
+SLIPPAGE  = 0.0002   # 0.02% (ETH 4h 合理值)
+FEE_SPOT  = 0.001    # 0.1% (现货策略)
+
+# 资金费率 — ETH 永续 8h 均值约 0.01-0.03%，取 0.015%/8h
+FUNDING_RATE_4H = 0.000025  # 0.015%/8h → 0.0025%/4h bar
+FUNDING_RATE_1H = 0.00000625  # 0.015%/8h → 0.000625%/1h bar
+```
+
+**铁律：**
+- 任何永续策略不得手写 FEE 常量，必须从 `utils/constants.py` 导入
+- 改费用参数须在回测报告中显式声明偏离值
+- 实盘部署时费用与回测必须一致
 
 ## 参考
 

@@ -16,16 +16,19 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "utils"))
+import constants as C  # noqa: E402
+
 DATA_PATH = PROJECT_ROOT / "data" / "eth_usdt_4h.csv"
 BTC_PATH = PROJECT_ROOT / "data" / "btc_usdt_4h.csv"
 
-# 费用
-FEE = 0.0005          # Binance USDT-M 永续 taker VIP 0 (0.05%)
-SLIPPAGE = 0.0002     # 0.02%
-FUNDING_RATE = 0.0000375  # 0.01%/8h → 0.00375%/4h bar
+# 费用 (统一从 constants.py 导入)
+FEE = C.FEE_TAKER            # Binance USDT-M taker VIP 0 (0.05%)
+SLIPPAGE = C.SLIPPAGE        # 0.02%
+FUNDING_RATE = 0.0000375     # 0.01%/8h → 0.00375%/4h bar (策略固有)
 
 # 杠杆
-MAX_LEVERAGE = 10.0
+MAX_LEVERAGE = C.MAX_LEVERAGE
 
 # ADX
 ADX_PERIOD, ADX_TREND, ADX_RANGE = 14, 30, 15
