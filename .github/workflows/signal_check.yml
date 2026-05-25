@@ -19,9 +19,4 @@ jobs:
         env:
           TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          MSG=$(grep -A5 "TELEGRAM" output.txt | head -10)
-          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
-            -d chat_id="${CHAT}" \
-            -d text="[ETH 4h] $(date -u '+%H:%M UTC')
-$(echo "$MSG")" > /dev/null
+        run: bash tools/send_telegram.sh
