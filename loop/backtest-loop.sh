@@ -7,6 +7,10 @@ TASKS_FILE="$SCRIPT_DIR/tasks.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.json"
 FINDINGS_FILE="$SCRIPT_DIR/findings.md"
 RESULTS_DIR="$SCRIPT_DIR/results"
+PY_TASKS_FILE="$(cygpath -m "$TASKS_FILE")"
+PY_PROGRESS_FILE="$(cygpath -m "$PROGRESS_FILE")"
+PY_FINDINGS_FILE="$(cygpath -m "$FINDINGS_FILE")"
+PY_RESULTS_DIR="$(cygpath -m "$RESULTS_DIR")"
 MAX_ITERATIONS="${1:-20}"
 CLAUDE_CMD="claude"
 
@@ -44,7 +48,7 @@ for i in $(seq 1 "$MAX_ITERATIONS"); do
   # 找到第一个未完成任务
   TASK=$(python3 -c "
 import json, sys
-with open('$TASKS_FILE') as f:
+with open('$PY_TASKS_FILE', encoding='utf-8') as f:
     tasks = json.load(f)
 pending = [t for t in tasks['tasks'] if not t.get('completed', False)]
 if pending:
@@ -82,14 +86,13 @@ $(cat "$SCRIPT_DIR/prompt.md")
 
 ## 执行步骤
 
-1. 读取 \`$TASKS_FILE\` 和 \`$PROGRESS_FILE\` 了解当前状态
-2. 读取 \`$FINDINGS_FILE\` 获取历史发现（如果有）
-3. 在 \`$RESULTS_DIR/$TASK_ID/\` 目录下执行回测
+1. 读取 \`$PY_TASKS_FILE\` 和 \`$PY_PROGRESS_FILE\` 了解当前状态
+2. 读取 \`$PY_FINDINGS_FILE\` 获取历史发现（如果有）
+3. 在 \`$PY_RESULTS_DIR/$TASK_ID/\` 目录下执行回测
 4. 回测完成后：
-   a. 将完整回测报告写入 \`$RESULTS_DIR/$TASK_ID/report.md\`
-   b. 将任务状态更新回 \`$PROGRESS_FILE\`（标记 completed: true，填入结果摘要）
-   c. 将关键发现追加到 \`$FINDINGS_FILE\`
-   d. 将因子/策略笔记写入 Obsidian vault（如有价值发现）
+   a. 将完整回测报告写入 \`$PY_RESULTS_DIR/$TASK_ID/report.md\`
+   b. 将 \`$PY_TASKS_FILE\` 中本任务的 \`completed\` 字段设为 \`true\`，填入结果摘要到 \`result\` 字段
+   c. 将关键发现追加到 \`$PY_FINDINGS_FILE\`
 5. 退出前输出 <promise>DONE</promise> 表示本轮完成
 HEREDOC
 )
