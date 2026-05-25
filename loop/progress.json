@@ -30,5 +30,30 @@
       "integration_total": 4,
       "notes": "WARN: 0/6 PASS. Best factor volume_divergence_roc_48 IC=-0.0405. 0/4 factors improved ADX baseline (confirm mode, z=1.0). Candlestick patterns near-zero at 4h. Bollinger %b captured by existing RSI. Next: model-001 (LightGBM)."
     }
+  },
+  {
+    "task_id": "model-001",
+    "completed": true,
+    "timestamp": "2026-05-25",
+    "summary": {
+      "model": "lightgbm",
+      "test_roc_auc": 0.801,
+      "test_f1": 0.631,
+      "test_precision": 0.541,
+      "test_recall": 0.758,
+      "test_kappa": 0.428,
+      "r2_vs_returns": 0.0007,
+      "spearman_rho": -0.059,
+      "spearman_p": 0.009,
+      "q5_q1_spread_p": 0.284,
+      "best_threshold": 0.26,
+      "best_round": 116,
+      "dominant_features": {
+        "adx_pct": 45.9,
+        "adx_slope_1_pct": 17.5
+      },
+      "verdict": "FAIL",
+      "notes": "LightGBM predicts ADX regime well (ROC-AUC 0.801) but 63% of power from adx+adx_slope. Trading value near-zero: R²=0.0007 vs returns. Not recommended for integration. Next: explore external features (funding rate, OI, on-chain)."
+    }
   }
 ]

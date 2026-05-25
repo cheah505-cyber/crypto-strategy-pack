@@ -1,5 +1,5 @@
 {
-  "_note": "adx-opt-002 完成：ADX>30/<15 全周期验证 PASS，Sharpe 1.303（vs 默认 0.459，+184%），零爆仓。熊市大幅改善（Sharpe 1.147 vs 0.185）。下一步：多时间片 ATR 止损校准。",
+  "_note": "全部任务完成（7/7）。ADX>30/<15 基线已更新。ADX_RANGE=15 确认最优，ATR 2.5x 不变，因子延伸和 ML 预测均不采纳。",
   "tasks": [
     {
       "id": "adx-perp-001",
@@ -90,8 +90,9 @@
     {
       "id": "model-001",
       "name": "ML增强：LightGBM 预测 ADX 状态切换概率",
-      "completed": false,
+      "completed": true,
       "priority": "low",
+      "result": "FAIL — LightGBM predicts ADX regime well (Test ROC-AUC 0.801, F1 0.631) but 63% of power is adx+adx_slope (trivial). Trading value near-zero: R²=0.0007 vs returns, Spearman ρ=-0.059 (tiny), Q5-Q1 spread p=0.284. ADX regime doesn't predict returns. Not recommended for integration.",
       "params": {
         "model": "lightgbm",
         "target": "adx_regime_change_24h",
