@@ -13,5 +13,22 @@
       "win_rate": 45.4,
       "notes": "4h ATR=2.50x confirmed optimal on full 2019-2026 cycle. 1h ATR=4.20x (DD 56%). 1d FAIL. Bull-only calibration was misleading; full-cycle validation confirmed 2.5x as optimal. Updated parameters: ADX_RANGE=15 (from adx-opt-002), ATR unchanged at 2.5x."
     }
+  },
+  {
+    "task_id": "factor-001",
+    "completed": true,
+    "timestamp": "2026-05-25",
+    "summary": {
+      "ic_combos": 14,
+      "ic_pass": 0,
+      "ic_warn": 6,
+      "ic_fail": 8,
+      "best_factor": "volume_divergence_roc_48",
+      "best_ic": -0.0405,
+      "best_icir": -0.453,
+      "integration_improved": 0,
+      "integration_total": 4,
+      "notes": "WARN: 0/6 PASS. Best factor volume_divergence_roc_48 IC=-0.0405. 0/4 factors improved ADX baseline (confirm mode, z=1.0). Candlestick patterns near-zero at 4h. Bollinger %b captured by existing RSI. Next: model-001 (LightGBM)."
+    }
   }
 ]

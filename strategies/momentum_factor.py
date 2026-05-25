@@ -90,6 +90,127 @@ def volume_momentum(df: pd.DataFrame, period: int = 24) -> pd.Series:
     return price_mom * (1 + vol_change)
 
 
+# ── 新增因子: 布林带 ──────────────────────────────────────
+
+
+def bollinger_b(df: pd.DataFrame, window: int = 20, std_mult: float = 2.0) -> pd.Series:
+    """布林带 %b: 价格在通道中的位置。
+
+    %b = (close - lower) / (upper - lower)
+    0 = 下轨, 1 = 上轨, 0.5 = 中轨。
+    低于 0 = 超卖（均值回归做多信号）, 高于 1 = 超买（均值回归做空信号）。
+    """
+    sma = df["close"].rolling(window).mean()
+    std = df["close"].rolling(window).std()
+    upper = sma + std_mult * std
+    lower = sma - std_mult * std
+    return (df["close"] - lower) / (upper - lower).replace(0, np.nan)
+
+
+# ── 新增因子: K线形态 ─────────────────────────────────────
+
+
+def candlestick_composite(df: pd.DataFrame, _dummy: int = 0) -> pd.Series:
+    """K线形态复合分数（单K线几何特征）。
+
+    基于蜡烛几何形状的连续分数：
+    - 正 = 看涨信号（长下影线 + 小实体 → 多头拒绝下跌）
+    - 负 = 看跌信号（长上影线 + 小实体 → 空头拒绝上涨）
+    - 大实体 = 动量延续（方向为符号）
+    - 十字星 = 中性（小幅反转倾向）
+    """
+    o, h, l, c = df["open"], df["high"], df["low"], df["close"]
+    body = c - o
+    body_abs = body.abs()
+    total_range = (h - l).replace(0, np.nan)
+
+    # 上下影线
+    upper_wick = h - pd.concat([o, c], axis=1).max(axis=1)
+    lower_wick = pd.concat([o, c], axis=1).min(axis=1) - l
+
+    upper_ratio = upper_wick / total_range
+    lower_ratio = lower_wick / total_range
+    body_ratio = body_abs / total_range
+
+    # 拒绝信号：长下影线 → 看涨（正），长上影线 → 看跌（负）
+    rejection = lower_ratio - upper_ratio
+
+    # 十字星：小实体 → 市场犹豫，反转倾向（按方向加权）
+    is_doji = body_ratio < 0.15
+    doji_signal = is_doji.astype(float) * rejection  # 十字星的方向看影线
+
+    # 动量实体：大实体方向
+    momentum = body / df["close"].shift(1) * 100
+
+    # 加权复合
+    return rejection * 0.3 + doji_signal * 0.3 + momentum * 0.4
+
+
+def candlestick_doji(df: pd.DataFrame, threshold: float = 0.15) -> pd.Series:
+    """十字星检测：|open-close| / (high-low) < threshold。
+
+    0 = 非十字星, 1 = 十字星。
+    十字星出现在趋势后 → 潜在反转。
+    """
+    o, h, l, c = df["open"], df["high"], df["low"], df["close"]
+    body_ratio = (c - o).abs() / (h - l).replace(0, np.nan)
+    return (body_ratio < threshold).astype(float)
+
+
+def candlestick_hammer(df: pd.DataFrame, _dummy: int = 0) -> pd.Series:
+    """锤子线 / 吊人线 检测。
+
+    正 = 锤子线（下跌后出现，看涨反转）
+    负 = 吊人线（上涨后出现，看跌反转）
+    连续值表示形态强度。
+    """
+    o, h, l, c = df["open"], df["high"], df["low"], df["close"]
+    body = (c - o).abs()
+    total_range = (h - l).replace(0, np.nan)
+    upper_wick = h - pd.concat([o, c], axis=1).max(axis=1)
+    lower_wick = pd.concat([o, c], axis=1).min(axis=1) - l
+
+    # 锤子线特征：下影线 ≥ 2× 实体，上影线很小
+    hammer = ((lower_wick >= 2 * body) & (upper_wick <= 0.3 * body)).astype(float)
+
+    # 吊人线特征：上影线 ≥ 2× 实体，下影线很小
+    hanging = ((upper_wick >= 2 * body) & (lower_wick <= 0.3 * body)).astype(float)
+
+    return hammer - hanging
+
+
+# ── 新增因子: 成交量背离 ──────────────────────────────────
+
+
+def volume_divergence_roc(df: pd.DataFrame, period: int = 20) -> pd.Series:
+    """量价背离（rate-of-change 方法）。
+
+    比较价格 ROC 和成交量 ROC 的方向一致性。
+    正 = 看涨背离（价格下跌但成交量萎缩 → 抛压衰竭）
+    负 = 看跌背离（价格上涨但成交量萎缩 → 上涨乏力）
+    """
+    price_roc = roc(df, period)
+    vol_roc = df["volume"] / df["volume"].shift(period) - 1
+
+    # 价跌量缩（抛压衰竭）= 看涨背离
+    # price_roc < 0 且 vol_roc < 0 时, 乘积为正
+    return price_roc * vol_roc
+
+
+def volume_divergence_corr(df: pd.DataFrame, window: int = 20) -> pd.Series:
+    """量价背离（滚动相关系数方法）。
+
+    价格变化与成交量变化的滚动相关系数。
+    负值 = 价格与成交量反向运动 = 背离。
+    正 = 量价齐升（趋势健康）, 负 = 量价分歧（潜在反转）。
+    """
+    price_ret = df["close"].pct_change()
+    vol_change = df["volume"].pct_change()
+    corr = price_ret.rolling(window).corr(vol_change)
+    # -corr: 负相关系数 → 正背离信号
+    return -corr * 100
+
+
 FACTOR_REGISTRY = {
     "roc": roc,
     "rsi": rsi,
@@ -98,6 +219,12 @@ FACTOR_REGISTRY = {
     "vol_adj_momentum": vol_adj_momentum,
     "sma_ratio": sma_ratio,
     "volume_momentum": volume_momentum,
+    "bollinger_b": bollinger_b,
+    "candlestick_composite": candlestick_composite,
+    "candlestick_doji": candlestick_doji,
+    "candlestick_hammer": candlestick_hammer,
+    "volume_divergence_roc": volume_divergence_roc,
+    "volume_divergence_corr": volume_divergence_corr,
 }
 
 DEFAULT_LOOKBACKS = {
@@ -108,6 +235,12 @@ DEFAULT_LOOKBACKS = {
     "vol_adj_momentum": [(12, 48), (24, 48), (48, 96)],
     "sma_ratio": [(10, 30), (20, 50), (50, 200)],
     "volume_momentum": [12, 24, 48],
+    "bollinger_b": [(20, 2.0), (20, 2.5), (50, 2.0), (50, 2.5)],
+    "candlestick_composite": [0],
+    "candlestick_doji": [0.1, 0.15, 0.2],
+    "candlestick_hammer": [0],
+    "volume_divergence_roc": [12, 24, 48],
+    "volume_divergence_corr": [14, 20, 40],
 }
 
 

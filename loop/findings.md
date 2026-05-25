@@ -223,3 +223,13 @@
 | ATR_TRAIL_MULT | 2.5x | **2.5x (confirmed optimal, no change)** |
 | MR_ATR_STOP_MULT | 3.5x | 3.5x (no change, not tested independently) |
 
+### 2026-05-25: Task factor-001 — Extension Factor Library (Bollinger, Candlestick, Volume Divergence)
+
+- **IC Analysis**: 14 combos total — **0 PASS, 6 WARN, 8 FAIL(L)**. All factors statistically significant (p < 0.001) due to large sample (16k bars), but all effect sizes tiny (Cohen's d 0.03–0.45).
+- **Best factor**: volume_divergence_roc_48 — IC=-0.0405, ICIR=-0.453. Negative IC means price-volume divergence predicts bearish reversal. Economically intuitive but practically weak.
+- **Candlestick patterns (composite)**: IC=-0.0173, ICIR=-0.216. Near-zero predictive power at 4h timeframe. Individual patterns (doji, hammer) even worse. 4h candles on large-cap ETH have poor pattern quality.
+- **Bollinger %b**: Weak mean-reversion at 50-bar window (IC=-0.0138). Already captured by existing RSI signal in the ADX strategy. Shorter windows (20, 30) are essentially zero.
+- **ADX Integration (confirm mode, z=1.0 threshold)**: 0/4 factors improved Sharpe. All degraded baseline (Sharpe 1.303 → worst 0.140, best 1.099). The confirm filter removes valid trades without quality improvement.
+- **Root cause**: ETH is a mean-reversion asset at 4h. The existing ADX+RSI+Donchian framework already captures dominant signals. Adding these weak factors adds noise faster than signal.
+- **Recommendation**: volume_divergence_roc kept in registry for potential ensemble use. Candlestick patterns and Bollinger %b not adopted - too weak to improve existing framework. Next priority: model-001 (LightGBM regime prediction).
+
