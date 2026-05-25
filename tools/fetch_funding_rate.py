@@ -1,7 +1,14 @@
-"""Fetch real Binance ETH/USDT perpetual funding rate history and calculate average."""
+"""Fetch Binance perpetual funding rate history for any symbol.
+
+Usage:
+    python tools/fetch_funding_rate.py
+    python tools/fetch_funding_rate.py --symbol BTC/USDT:USDT
+    python tools/fetch_funding_rate.py --symbol SOL/USDT:USDT --start 2021-01-01
+"""
 
 from __future__ import annotations
 
+import argparse
 import logging
 import time
 from pathlib import Path
@@ -13,21 +20,32 @@ import pandas as pd
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-SYMBOL = "ETH/USDT:USDT"  # Binance USDT-M perpetual
-LIMIT = 1000  # max per page
-MAX_PAGES = 100  # 1000 * 100 = 100k records (~8h*100k = ~900 years, should cover full range)
-PAUSE = 1.0  # seconds between pages to avoid rate limit
+LIMIT = 1000
+MAX_PAGES = 100
+PAUSE = 1.0
+
+
+def infer_pair_label(symbol: str) -> str:
+    """ETH/USDT:USDT → ETH, BTC/USDT:USDT → BTC"""
+    return symbol.split("/")[0].upper()
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Fetch perpetual funding rate history")
+    parser.add_argument("--symbol", default="ETH/USDT:USDT", help="CCXT perpetual symbol (default: ETH/USDT:USDT)")
+    parser.add_argument("--start", default="2019-01-01", help="Start date (default: 2019-01-01)")
+    args = parser.parse_args()
+
+    symbol = args.symbol
+    pair = infer_pair_label(symbol)
     ex = ccxt.binance({"enableRateLimit": True})
 
     all_rates: list[dict] = []
-    since = ex.parse8601("2019-01-01T00:00:00Z")
+    since = ex.parse8601(f"{args.start}T00:00:00Z")
 
     for page in range(MAX_PAGES):
         try:
-            rates = ex.fetchFundingRateHistory(SYMBOL, since=since, limit=LIMIT)
+            rates = ex.fetchFundingRateHistory(symbol, since=since, limit=LIMIT)
             if not rates:
                 break
             all_rates.extend(rates)
@@ -49,18 +67,16 @@ def main() -> int:
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
     df = df.sort_values("timestamp").reset_index(drop=True)
 
-    # fundingRate from CCXT is already in decimal (e.g., 0.0001 = 0.01%)
     rates = df["fundingRate"].values
 
     print(f"\n{'=' * 60}")
-    print(f"  Binance {SYMBOL} Perpetual Funding Rate History")
+    print(f"  Binance {symbol} Perpetual Funding Rate History")
     print(f"{'=' * 60}")
     print(f"  Data range: {df['timestamp'].min()} → {df['timestamp'].max()}")
     print(f"  Total records: {len(df)}")
     print(f"  Time span: {(df['timestamp'].max() - df['timestamp'].min()).days} days")
     print()
 
-    # Per-bar conversions (4h bars = 1/2 of funding period, 1h bars = 1/8)
     per_8h = rates
     per_4h = rates / 2
     per_1h = rates / 8
@@ -82,7 +98,6 @@ def main() -> int:
         print(f"    Negative:  {np.mean(arr < 0) * 100:.1f}%")
         print()
 
-    # Time series analysis
     df["month"] = df["timestamp"].dt.to_period("M")
     monthly = df.groupby("month")["fundingRate"].mean() * 100
     print(f"  Monthly average funding rate (top/bottom 5):")
@@ -93,21 +108,23 @@ def main() -> int:
         print(f"    {m}: {v:.4f}%")
 
     # Save to CSV
-    out = Path(__file__).resolve().parent.parent / "data" / "eth_usdt_funding_rate.csv"
+    csv_name = f"{pair.lower()}_usdt_funding_rate.csv"
+    out = Path(__file__).resolve().parent.parent / "data" / csv_name
     df.to_csv(out, index=False)
     logger.info(f"Saved to {out}")
 
-    # Recommended values for constants
-    print(f"\n  Recommended constants:")
-    mean_4h = np.mean(per_4h)
-    print(f"    FUNDING_RATE_4H = {mean_4h:.10f}  # {mean_4h*100:.6f}%/4h bar")
-    median_4h = np.median(per_4h)
-    print(f"    (Median: {median_4h:.10f} = {median_4h*100:.6f}%/4h)")
-    print()
-    print(f"  Current strategy uses:")
-    print(f"    FUNDING_RATE = 0.0000375  # 0.00375%/4h bar (0.0225%/8h)")
-    print(f"    vs real mean:   {mean_4h*100:.6f}%/4h ({mean_4h*2*100:.6f}%/8h)")
-    print(f"    vs real median: {median_4h*100:.6f}%/4h ({median_4h*2*100:.6f}%/8h)")
+    # Generate constant definitions for this pair
+    mean_8h = float(np.mean(per_8h))
+    mean_4h = float(np.mean(per_4h))
+    mean_1h = float(np.mean(per_1h))
+    median_8h = float(np.median(per_8h))
+
+    print(f"\n  ── Add to utils/constants.py ──")
+    print(f"  # {pair}/USDT:USDT — Binance {len(df)} records ({df['timestamp'].min().year}-{df['timestamp'].max().year})")
+    print(f"  #   mean {mean_8h*100:.6f}%/8h, median {median_8h*100:.6f}%/8h")
+    print(f"  FUNDING_RATE_8H_{pair} = {mean_8h:.10f}    # {mean_8h*100:.6f}%/8h")
+    print(f"  FUNDING_RATE_4H_{pair} = {mean_4h:.10f}    # {mean_4h*100:.6f}%/4h bar")
+    print(f"  FUNDING_RATE_1H_{pair} = {mean_1h:.10f}    # {mean_1h*100:.6f}%/1h bar")
 
     return 0
 
