@@ -1,8 +1,10 @@
 name: Signal Check
 
 on:
+  # 每 4 小时检查一次
   schedule:
     - cron: '0 */4 * * *'
+  # 支持手动触发
   workflow_dispatch:
 
 jobs:
