@@ -253,3 +253,10 @@
 - **2023+ windows**: 9/9 positive (100%), strategy robust in recent data
 - **ATR instability**: Best ATR wanders 1.5x-4.0x, no convergence — supports adaptive ATR approach
 - **Old WF was on spot + wrong fees**: Old walk-forward (17/26 on spot 0.1% fee) is now superseded
+
+### 2026-05-25: Stress Test — Slippage + Funding Rate
+
+- **Slippage 0.10% (5x)**: Sharpe 1.151, retention 89.4%, 0 liq — PASS
+- **Funding P99 (0.136%/8h)**: Sharpe 1.288, retention 100% — PASS (bidirectional hedging)
+- **Funding extreme bull (0.38%/8h)**: Sharpe 1.298, no degradation — PASS
+- **Verdict**: Strategy is cost-resilient. Market risk >> cost risk. Ready for live deployment.
