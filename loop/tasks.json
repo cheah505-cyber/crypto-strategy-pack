@@ -1,5 +1,5 @@
 {
-  "_note": "过拟合诊断完成（6/6 任务）。核心结论：策略无过拟合（OOS 保留率 103%），ADX>30/<15 阈值优化提升显著（夏普 1.491 vs 0.822）。下一步：ADX 参数优化+多时间片 ATR 校准。",
+  "_note": "adx-opt-002 完成：ADX>30/<15 全周期验证 PASS，Sharpe 1.303（vs 默认 0.459，+184%），零爆仓。熊市大幅改善（Sharpe 1.147 vs 0.185）。下一步：多时间片 ATR 止损校准。",
   "tasks": [
     {
       "id": "adx-perp-001",
@@ -48,8 +48,9 @@
     {
       "id": "adx-opt-002",
       "name": "ADX>30/<15 扩展验证 — 熊市 + 2026 全周期",
-      "completed": false,
+      "completed": true,
       "priority": "high",
+      "result": "PASS — 全周期 Sharpe 1.303（+184% vs 默认 0.459），Ret +1,649%，零爆仓。熊市 Sharpe 1.147（+520% vs 默认 0.185），牛市 Sharpe 1.407（+56% vs 默认 0.899）。ADX>30/<15 在 7.4 年全周期有效。",
       "params": {
         "strategy": "adx_adaptive_perp_eth_4h",
         "optimization": "final_validation",

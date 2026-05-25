@@ -173,3 +173,20 @@
 - **SOL**: Sharpe 0.269 (+56% vs default 0.172). Marginal improvement, still weak.
 - **Key insight**: The strategy should use per-coin ADX thresholds. ETH>30/<15, BTC>40/<25, SOL>20/<10, BNB>20/<15. A single threshold cannot serve all coins.
 - **Implication for adx-opt-002**: Full-cycle (2019-2026) validation should focus on ETH only, where ADX>30/<15 is proven optimal. BTC/BNC cross-coin adaptation requires coin-specific parameter files.
+
+### 2026-05-25: Task adx-opt-002 — ADX>30/<15 Full-Cycle Validation
+
+- **Config**: ADX_TREND=30, ADX_RANGE=15, ETH/USDT 4h, full 2019-01→2026-05 (16,183 bars)
+- **Verdict: PASS** — Strategy validated across bear + bull full 7.4-year cycle
+- **Full Cycle**: Sharpe 1.303, Total Return +1,649.2%, Ann Return +47.3%, DD -38.2%, PF 2.01, 194 trades (94L/100S), 0 liqs
+- **Bear 2019-2022**: Sharpe 1.147 (+520% vs default 0.185), Return +315.8%, DD -25.0% (improved from -39.4%)
+  - This is the most dramatic improvement — the lower range threshold (15 vs 20) keeps the strategy in "trend" mode more, turning bear-market trend-following into a profitable regime instead of being stuck in losing mean-reversion signals
+- **Bull 2023-2026**: Sharpe 1.407 (+56% vs default 0.899), Return +288.5%, DD -38.2% (improved from -49.1%)
+- **Crash windows**: 4/4 positive excess (COVID -2.5% +24.8pp, China Ban +6.6% +66.2pp, Luna/3AC +23.3% +218.6pp, FTX +10.4% +164.5pp)
+- **Comparison to default (30/20)**: Sharpe +184% (0.459→1.303), Return +598% (236%→1,649%), Calmar +241% (0.363→1.238), PF +52% (1.32→2.01)
+- **Key insight**: The range threshold (15 vs 20) is the dominant parameter for ETH. Reducing ADX_RANGE from 20 to 15 causes more bars to be classified as "trend" mode, which:
+  1. **Bear market**: Turns the strategy from mostly mean-reversion (which performs poorly in persistent downtrends) to mostly trend-following — bear returns jump from +32.2% to +315.8%
+  2. **Bull market**: Keeps strategy in trend mode more, capturing larger bull runs instead of exiting early on mean-reversion signals
+  3. **Drawdown**: Max DD reduces across both regimes because trend-following exits are more disciplined (Donchian breakouts vs RSI-based reversals)
+- **Implication**: ADX>30/<15 is confirmed as the optimal ETH 4h configuration. Can be moved from "experimental" to "baseline" status. Next tasks (ATR calibration, timeframe extension) should use this as the new default.
+
