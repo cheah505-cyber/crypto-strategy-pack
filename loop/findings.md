@@ -260,3 +260,12 @@
 - **Funding P99 (0.136%/8h)**: Sharpe 1.288, retention 100% — PASS (bidirectional hedging)
 - **Funding extreme bull (0.38%/8h)**: Sharpe 1.298, no degradation — PASS
 - **Verdict**: Strategy is cost-resilient. Market risk >> cost risk. Ready for live deployment.
+
+### 2026-05-25: Multi-Timeframe — 1h + 4h regime 同向
+
+- **Config**: 1h primary (ADX>30/<15, ATR 4.2x) + 4h regime filter (only trade when 4h ADX > 30)
+- **Full cycle (2023-2026)**: +407.9%, Sharpe **3.559**, DD 28.7%, 116 trades, 0 liqs, 46.6% win rate
+- **Walk-Forward**: 11/18 (61%) PASS, cumulative OOS +121.5%
+- **vs 1h baseline**: Sharpe 1.422 → 3.559, DD 57.3% → 28.7%, trades 261 → 116 (better quality)
+- **Key insight**: 4h regime filter removes choppy-market signals. Only trade when higher timeframe confirms. Simple filter, massive impact.
+- **Recommendation**: New baseline for ETH. Supersedes both standalone 4h and standalone 1h.
