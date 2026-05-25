@@ -160,3 +160,16 @@
 - **ETH 4h full grid top 3**: (1) ADX>30/<15 Sharpe 1.491, (2) ADX>20/<10 Sharpe 1.304, (3) ADX>20/<15 Sharpe 1.252
 - **Per-config optimal**: ETH 4h ADX>30/<15 (1.491), BTC 4h ADX>40/<25 (1.984), ETH 1h ADX>35/<20 (0.984), ETH 1d ADX>35/<20 (0.143), SOL 4h ADX>20/<10 (0.552), BNB 4h ADX>20/<15 (1.326)
 - **Key finding**: The default ADX>30/<20 (Sharpe 0.822) is NOT the best for ETH 4h -- ADX>30/<15 (Sharpe 1.491) outperforms by 81%. The range threshold is more sensitive than the trend threshold. BTC prefers a much higher trend threshold (40) while SOL/BNB prefer lower (20). All 6/6 configs produce positive Sharpe, confirming directional generalization. The fix (re-running `compute_signals()` inside the parameter loop) resolves the pre-computed signal bug identified in Task 4 -- results now properly reflect ADX parameter changes.
+
+### 2026-05-25: Task adx-opt-001 -- ADX>30/<15 Cross-Coin Validation
+
+- **Config**: ADX_TREND=30, ADX_RANGE=15, 5 coins (ETH/BTC/SOL/BNB/ADA), 4h, 2023-01→2026-05
+- **All coins**: 5/5 Sharpe > 0, 0 liquidations, 85-93 trades each
+- **Verdict: WARN** -- ADX>30/<15 is ETH-optimal but NOT cross-coin optimal
+- **ETH**: Sharpe 1.407 (+71% vs default 0.822). Expected/Task 6 consistent.
+- **ADA**: Sharpe 0.429 (+246% vs default 0.124). Surprise winner -- low vol asset benefits from tighter range threshold.
+- **BTC**: Sharpe 0.438 (-59% vs default 1.066). Degrades sharply -- BTC needs ADX>40 for trend filtering.
+- **BNB**: Sharpe 0.291 (-63% vs default 0.788). Also degrades -- BNB prefers ADX>20 lower trend threshold.
+- **SOL**: Sharpe 0.269 (+56% vs default 0.172). Marginal improvement, still weak.
+- **Key insight**: The strategy should use per-coin ADX thresholds. ETH>30/<15, BTC>40/<25, SOL>20/<10, BNB>20/<15. A single threshold cannot serve all coins.
+- **Implication for adx-opt-002**: Full-cycle (2019-2026) validation should focus on ETH only, where ADX>30/<15 is proven optimal. BTC/BNC cross-coin adaptation requires coin-specific parameter files.

@@ -30,8 +30,9 @@
     {
       "id": "adx-opt-001",
       "name": "ADX>30/<15 阈值优化 — 全币种验证",
-      "completed": false,
+      "completed": true,
       "priority": "high",
+      "result": "WARN — 5/5 币种正 Sharpe 零爆仓，但仅 ETH (Sharpe 1.407) 和 ADA (Sharpe 0.429) 有效提升。BTC (-59%) 和 BNB (-63%) Sharpe 退化。ADX>30/<15 是 ETH 最优配置，非通用配置。",
       "params": {
         "strategy": "adx_adaptive_perp_eth_4h",
         "optimization": "adx_range_threshold",
