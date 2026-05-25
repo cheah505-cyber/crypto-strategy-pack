@@ -233,3 +233,23 @@
 - **Root cause**: ETH is a mean-reversion asset at 4h. The existing ADX+RSI+Donchian framework already captures dominant signals. Adding these weak factors adds noise faster than signal.
 - **Recommendation**: volume_divergence_roc kept in registry for potential ensemble use. Candlestick patterns and Bollinger %b not adopted - too weak to improve existing framework. Next priority: model-001 (LightGBM regime prediction).
 
+### 2026-05-25: Task model-001 — LightGBM ADX Regime Change Prediction
+
+- **Target**: adx_regime_change_24h (regime change within 6 bars, 3-zone definition)
+- **Features**: 14 features including RSI, ATR%, volume_ratio, close_sma_ratio, adx, adx_slope, DI spread
+- **Data**: ETH/USDT 4h, 2019-01→2026-05 (16,183 bars), Train→Val→Test time split
+- **Classification PASS**: Test ROC-AUC 0.801, Test F1 0.631, Kappa 0.428, Precision 0.541, Recall 0.758
+- **Trivial signal dominance**: `adx` (45.9%) + `adx_slope_1` (17.5%) = 63.4% of feature importance. Model learns "ADX near threshold + moving toward it = regime change" — mechanically true, not novel.
+- **Trading value FAIL**: R²=0.0007 vs 6-bar returns. Spearman ρ=-0.059 (p=0.009, tiny). Q5-Q1 quintile spread not significant (p=0.284, d=-0.069). Returns not monotonic across probability quintiles.
+- **Verdict: FAIL (for trading)** — Predicting ADX regime changes from price/volume data doesn't add trading edge beyond the existing ADX regime filter already used in the strategy.
+- **Next direction**: External data (funding rate, open interest, BTC dominance, on-chain) may predict volatility expansion better than price/volume features alone.
+
+
+### 2026-05-25: Walk-Forward Re-run — Perpetual + Binance 真实费率 + 复利
+
+- **Config**: ADX>30/<15 fixed, ATR grid [1.5-4.0], 8m IS / 4m OOS
+- **Fees**: taker 0.05%, slippage 0.02%, funding 0.0065%/4h (Binance real)
+- **Result: PASS** — 19 windows, 12/19 (63%) OOS positive, cumulative +316.32%, 0 liqs
+- **2023+ windows**: 9/9 positive (100%), strategy robust in recent data
+- **ATR instability**: Best ATR wanders 1.5x-4.0x, no convergence — supports adaptive ATR approach
+- **Old WF was on spot + wrong fees**: Old walk-forward (17/26 on spot 0.1% fee) is now superseded
