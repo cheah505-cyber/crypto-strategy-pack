@@ -52,7 +52,7 @@ def run_coin(
     df = mod.compute_signals(df)
 
     # Reset the cost params in case another run changed them
-    mod.FEE = 0.0004
+    mod.FEE = 0.0005  # Binance USDT-M taker 0.05%
     mod.SLIPPAGE = 0.0002
     mod.FUNDING_RATE = 0.0000375
     mod.MAX_LEVERAGE = 10.0

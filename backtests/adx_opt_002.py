@@ -55,7 +55,7 @@ def configure_params() -> None:
     """Set strategy parameters for this run."""
     mod.ADX_TREND = ADX_HI
     mod.ADX_RANGE = ADX_LO
-    mod.FEE = 0.0004
+    mod.FEE = 0.0005  # Binance USDT-M taker 0.05%
     mod.SLIPPAGE = 0.0002
     mod.FUNDING_RATE = 0.0000375
     mod.MAX_LEVERAGE = 10.0

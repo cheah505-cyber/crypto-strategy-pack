@@ -20,7 +20,7 @@ DATA_PATH = PROJECT_ROOT / "data" / "eth_usdt_4h.csv"
 BTC_PATH = PROJECT_ROOT / "data" / "btc_usdt_4h.csv"
 
 # 费用
-FEE = 0.0004          # 永续 taker 0.04%
+FEE = 0.0005          # Binance USDT-M 永续 taker VIP 0 (0.05%)
 SLIPPAGE = 0.0002     # 0.02%
 FUNDING_RATE = 0.0000375  # 0.01%/8h → 0.00375%/4h bar
 
