@@ -43,5 +43,5 @@
 
 每阶段完成后，必须同步更新：
 - `loop/findings.md` — 追加阶段发现
-- auto-memory: `crypto-strategy-adx-perp.md` — 更新验证状态和指标
+- `crypto-strategy-adx-perp.md`（项目根目录） — 更新验证状态和指标
 - `lessons-crypto.md` — 如有可提炼的新教训

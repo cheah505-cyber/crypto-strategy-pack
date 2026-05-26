@@ -135,7 +135,7 @@
 
 | 目标 | 写入内容 | 类型 |
 |---|---|---|
-| auto-memory: `crypto-strategy-adx-perp.md` | 关键指标、验证状态、已知限制 | 原地覆盖 |
+| `crypto-strategy-adx-perp.md`（项目根目录） | 关键指标、验证状态、已知限制 | 原地覆盖 |
 | `loop/findings.md` | 追加发现条目 | 只追加 |
 | `lessons-crypto.md` | 可提炼的新教训 | 只追加（上限 20 条 → 归档见下文） |
 
