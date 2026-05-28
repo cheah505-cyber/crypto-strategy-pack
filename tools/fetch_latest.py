@@ -17,11 +17,12 @@ SYMBOL = "ETH/USDT"
 TIMEFRAME = "4h"
 CSV = DATA_DIR / "eth_usdt_4h.csv"
 
-# Exchanges to try in order (Binance geo-blocked on GitHub Actions)
+# Exchanges to try in order (many geo-block GitHub Actions IPs)
 EXCHANGES = [
+    lambda: ccxt.okx({"enableRateLimit": True, "timeout": 30000}),
+    lambda: ccxt.kucoin({"enableRateLimit": True, "timeout": 30000}),
     lambda: ccxt.bybit({"enableRateLimit": True, "timeout": 30000, "options": {"defaultType": "spot"}}),
     lambda: ccxt.binance({"enableRateLimit": True, "timeout": 30000, "options": {"defaultType": "spot"}}),
-    lambda: ccxt.okx({"enableRateLimit": True, "timeout": 30000}),
 ]
 
 
