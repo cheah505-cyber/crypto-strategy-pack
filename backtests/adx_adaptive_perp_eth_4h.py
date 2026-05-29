@@ -1,7 +1,7 @@
 """ADX Adaptive + 永续合约：双向开仓 + 杠杆 + funding rate。
 
-Long:  Donchian通道突破做多（趋势+过渡统一入场）
-Short: Donchian通道跌破做空（仅价格 ≤ SMA100 时，防抛物线牛市）
+Long:  Donchian通道突破做多（DC20，趋势+过渡统一入场）
+Short: Donchian通道跌破做空（DC8+DC20，仅价格≤SMA100时）
 
 ADX > 30  → 趋势（2.5x ATR止损，方向强）
 ADX ≤ 30  → 过渡（0.8x ATR止损，方向弱）
@@ -36,6 +36,7 @@ MAX_LEVERAGE = C.MAX_LEVERAGE
 # ADX
 ADX_PERIOD, ADX_TREND, ADX_RANGE = 14, 30, 15
 DC_PERIOD, ATR_PERIOD = 20, 14
+DC_SHORT_PERIOD = 8              # 下跌趋势中空头用更短 Donchian（更快捕捉突破）
 ATR_TRAIL_MULT = 2.5            # 趋势止损
 TRAN_ATR_TRAIL_MULT = 0.8       # 过渡止损（方向弱，收紧；0.8x 全周期最优）
 
@@ -78,21 +79,24 @@ def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     # Donchian Channel
     df["dc_high"] = h.rolling(DC_PERIOD).max()
     df["dc_low"] = l.rolling(DC_PERIOD).min()
+    df["dc_low_short"] = l.rolling(DC_SHORT_PERIOD).min()  # 下跌趋势中更快捕捉空头
 
-    # Breakout signals (used by both trend and transition)
-    df["long_trend"] = c > df["dc_high"].shift(1)
-    df["short_trend"] = c < df["dc_low"].shift(1)
+    # Breakout signals
+    df["long_trend"] = c > df["dc_high"].shift(1)                      # 做多：标准 DC20
+    df["short_trend"] = c < df["dc_low"].shift(1)                      # 做空：标准 DC20
+    df["short_trend_agg"] = c < df["dc_low_short"].shift(1)            # 做空：激进 DC8
 
     # 2-regime: trend (ADX > 30) / transition (ADX <= 30)
     df["is_trend"] = df["adx"] > ADX_TREND
-    df["is_transition"] = ~df["is_trend"]  # everything else
+    df["is_transition"] = ~df["is_trend"]
 
-    # SMA100 filter: suppress shorts above SMA100 (parabolic bull protection)
+    # SMA100 filter: no shorts above SMA100; DC8+DC20 below
     df["sma100"] = c.rolling(100).mean()
+    below_sma100 = c <= df["sma100"]
 
-    # Unified entry: Donchian breakout in both regimes
+    # Entry signals
     df["long_sig"] = df["long_trend"]
-    df["short_sig"] = df["short_trend"] & (c <= df["sma100"])
+    df["short_sig"] = below_sma100 & (df["short_trend"] | df["short_trend_agg"])
 
     # Unified exit: reverse breakout
     df["close_sig"] = df["short_trend"]
