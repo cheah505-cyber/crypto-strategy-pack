@@ -21,10 +21,10 @@
 
 ## 2026-05-22 ADX 自适应永续策略完整验证
 
-### Phase 1 — VT Alpha Zoo 校准
+### Phase 1 — Alpha Zoo 校准
 
-- VT alpha bench 仅支持横截面 IC，不兼容单币对（ETH/USDT, BTC/USDT）
-- 结论：VT 退化为纯回测执行器，因子全部自建
+- 横截面因子 IC 分析不兼容单币对（ETH/USDT, BTC/USDT）
+- 结论：因子全部自建
 
 ### Phase 2 — 因子 IC 分析
 
