@@ -93,6 +93,9 @@ equity_history = []
 if EQUITY_FILE.exists():
     equity_history = pd.read_csv(EQUITY_FILE).to_dict("records")
 
+# Track events during this run for Telegram
+events_this_run = []
+
 for i in range(len(new_bars)):
     bar_idx = new_bars.index[i]
     row = df.loc[bar_idx]
@@ -111,6 +114,7 @@ for i in range(len(new_bars)):
                 pnl = (entry_price - s.entry_cost(price)) * entry_contracts
             ret = pnl / entry_equity if entry_equity > 0 else 0
             trade_count += 1
+            ret_pct = round(ret * 100, 2)
             recorded_trades.append({
                 "trade_id": trade_count,
                 "entry_time": str(entry_time),
@@ -119,9 +123,11 @@ for i in range(len(new_bars)):
                 "regime": entry_regime,
                 "entry_price": round(entry_price, 2),
                 "exit_price": round(price, 2),
-                "return_pct": round(ret * 100, 2),
+                "return_pct": ret_pct,
                 "exit_reason": "liquidated",
             })
+            side_cn = "多" if pos_side == 1 else "空"
+            events_this_run.append(f"平{side_cn}离场 ⚡爆仓 {ret_pct:+.1f}% | 权益 ${equity:.0f}")
             equity = max(entry_equity + pnl, 0.01)
             peak = max(peak, equity)
             max_dd = max(max_dd, (peak - equity) / peak if peak > 0 else 0)
@@ -155,6 +161,7 @@ for i in range(len(new_bars)):
             else:
                 pnl = (entry_price - s.entry_cost(price)) * entry_contracts
             ret = pnl / entry_equity if entry_equity > 0 else 0
+            ret_pct = round(ret * 100, 2)
             trade_count += 1
             recorded_trades.append({
                 "trade_id": trade_count,
@@ -164,9 +171,11 @@ for i in range(len(new_bars)):
                 "regime": entry_regime,
                 "entry_price": round(entry_price, 2),
                 "exit_price": round(price, 2),
-                "return_pct": round(ret * 100, 2),
+                "return_pct": ret_pct,
                 "exit_reason": reason,
             })
+            side_cn = "多" if pos_side == 1 else "空"
+            events_this_run.append(f"平{side_cn}离场 {ret_pct:+.1f}% | 权益 ${equity:.0f}")
             equity = max(entry_equity + pnl, 0.01)
             peak = max(peak, equity)
             max_dd = max(max_dd, (peak - equity) / peak if peak > 0 else 0)
@@ -189,6 +198,7 @@ for i in range(len(new_bars)):
                 tmult = s.TRAN_ATR_TRAIL_MULT
 
             entry_contracts = s.calc_contracts(equity, price, atr_val, LEVERAGE)
+            events_this_run.append(f"{'做多' if enter_long else '做空'}入场 @ ${price:.0f} ({entry_regime})")
             if enter_long:
                 pos_side = 1
                 entry_price = s.entry_cost(price)
@@ -302,3 +312,18 @@ if recorded_trades:
     for t in last_trades:
         side = t["side"][:1]
         print(f"    #{t['trade_id']} {side} {t['entry_time'][:10]} {t['return_pct']:>+6.1f}% {t['exit_reason']}")
+
+# ── Telegram ──
+print("---TELEGRAM---")
+ret_total = (equity - INITIAL_CAPITAL) / INITIAL_CAPITAL * 100
+if events_this_run:
+    for evt in events_this_run:
+        print(evt)
+elif pos_side == 1:
+    upnl = (last_price - entry_price) / entry_price * 100
+    print(f"做多持仓中 | 权益 ${equity:.0f} ({ret_total:+.0f}%) | 浮盈 {upnl:+.1f}%")
+elif pos_side == -1:
+    upnl = (entry_price - last_price) / entry_price * 100
+    print(f"做空持仓中 | 权益 ${equity:.0f} ({ret_total:+.0f}%) | 浮盈 {upnl:+.1f}%")
+else:
+    print(f"空仓 | 权益 ${equity:.0f} ({ret_total:+.0f}%) | ${last_price:.0f}")
