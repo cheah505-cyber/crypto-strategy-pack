@@ -1,7 +1,7 @@
 """ADX Adaptive + 永续合约：双向开仓 + 杠杆 + funding rate。
 
 Long:  Donchian通道突破做多（趋势+过渡统一入场）
-Short: Donchian通道跌破做空（趋势+过渡统一入场）
+Short: Donchian通道跌破做空（仅价格 ≤ SMA100 时，防抛物线牛市）
 
 ADX > 30  → 趋势（2.5x ATR止损，方向强）
 ADX ≤ 30  → 过渡（0.8x ATR止损，方向弱）
@@ -87,9 +87,12 @@ def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     df["is_trend"] = df["adx"] > ADX_TREND
     df["is_transition"] = ~df["is_trend"]  # everything else
 
+    # SMA100 filter: suppress shorts above SMA100 (parabolic bull protection)
+    df["sma100"] = c.rolling(100).mean()
+
     # Unified entry: Donchian breakout in both regimes
     df["long_sig"] = df["long_trend"]
-    df["short_sig"] = df["short_trend"]
+    df["short_sig"] = df["short_trend"] & (c <= df["sma100"])
 
     # Unified exit: reverse breakout
     df["close_sig"] = df["short_trend"]

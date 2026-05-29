@@ -57,7 +57,9 @@ print("=" * 55)
 print(f"  当前价格: ${last_price:,.2f}")
 print(f"  ATR: ${atr:.2f} ({atr/last_price*100:.2f}%)")
 print(f"  ADX: {current['adx']:.1f}")
-print(f"  市场状态: {regime} (止损 {atr_mult}x ATR)")
+sma100 = float(current.get("sma100", 0) or 0)
+short_ok = "允许" if last_price <= sma100 else "禁止(SMA100)"
+print(f"  市场状态: {regime} (止损 {atr_mult}x ATR) | SMA100: ${sma100:.0f} | 做空: {short_ok}")
 print()
 
 # ── 检查是否有新信号 ──
