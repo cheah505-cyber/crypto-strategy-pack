@@ -1,10 +1,9 @@
-"""ADX Adaptive + 永续合约：双向开仓 + 杠杆 + funding rate。
+"""ADX Adaptive 1h+4h MTF — 1h primary signals + 4h regime filter.
 
-Long:  Donchian通道突破做多（趋势+过渡统一入场）
-Short: Donchian通道跌破做空（趋势+过渡统一入场）
+1h: ADX>30/<15, ATR 4.2x trail, 5.2x MR hard stop
+4h: regime filter — only trade 1h signals when 4h ADX > 30
 
-ADX > 30  → 趋势（2.5x ATR止损，方向强）
-ADX ≤ 30  → 过渡（0.8x ATR止损，方向弱）
+Supersedes adx_adaptive_perp_eth_4h.py as the new baseline.
 """
 
 from __future__ import annotations
@@ -22,47 +21,70 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "utils"))
 import constants as C  # noqa: E402
 
-DATA_PATH = PROJECT_ROOT / "data" / "eth_usdt_4h.csv"
-BTC_PATH = PROJECT_ROOT / "data" / "btc_usdt_4h.csv"
+DATA_PATH_1H = PROJECT_ROOT / "data" / "eth_usdt_1h.csv"
+DATA_PATH_4H = PROJECT_ROOT / "data" / "eth_usdt_4h.csv"
 
-# 费用 (统一从 constants.py 导入)
-FEE = C.FEE_TAKER            # Binance USDT-M taker VIP 0 (0.05%)
-SLIPPAGE = C.SLIPPAGE_ETH    # 0.02% (ETH 高流动性)
-FUNDING_RATE = C.FUNDING_RATE_4H_ETH  # 0.006531%/4h (ETH 6.5年真实均值)
+# ── 费用 (统一从 constants.py 导入) ──
+FEE = C.FEE_TAKER              # Binance USDT-M taker VIP 0 (0.05%)
+SLIPPAGE = C.SLIPPAGE_ETH      # 0.02% (ETH 高流动性)
+FUNDING_RATE = C.FUNDING_RATE_1H_ETH  # 0.001633%/1h (ETH 6.5年真实均值 / 4)
 
-# 杠杆
+# ── 杠杆 ──
 MAX_LEVERAGE = C.MAX_LEVERAGE
 
-# ADX
+# ── 1h ADX 参数 ──
 ADX_PERIOD, ADX_TREND, ADX_RANGE = 14, 30, 15
 DC_PERIOD, ATR_PERIOD = 20, 14
-ATR_TRAIL_MULT = 2.5            # 趋势止损
-TRAN_ATR_TRAIL_MULT = 0.8       # 过渡止损（方向弱，收紧；0.8x 全周期最优）
+ATR_TRAIL_MULT = 4.2           # 1h 最优 (calibrate-001)
+MR_ATR_STOP_MULT = 5.2         # 1h MR 硬止损
 
-# 风控
-RISK_PER_TRADE = 0.10            # 每笔风险 10%（WF validated 2026-05-30）
+# ── 4h regime filter ──
+REGIME_ADX_PERIOD = 14
+REGIME_ADX_THRESHOLD = 30      # 仅 4h ADX > 30 时交易
+
+# ── RSI ──
+RSI_PERIOD, RSI_OVERSOLD, RSI_OVERBOUGHT = 14, 35, 65
+
+# ── 风控 ──
+RISK_PER_TRADE = 0.04
 CB_MAX_LOSSES, CB_COOLDOWN = 5, 24
-LIQ_THRESHOLD = 0.90  # 亏 90% 保证金 → 强平
+LIQ_THRESHOLD = 0.90
 
 
 def entry_cost(price: float) -> float:
     return price * (1 + SLIPPAGE) * (1 + FEE)
 
+
 def exit_value(price: float) -> float:
     return price * (1 - SLIPPAGE) * (1 - FEE)
 
 
-def load_data(path: Path | None = None) -> pd.DataFrame:
-    p = path or DATA_PATH
-    return pd.read_csv(p, parse_dates=["timestamp"], index_col="timestamp")
+def load_data(
+    path_1h: Path | None = None,
+    path_4h: Path | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Load 1h and 4h OHLCV data. Returns (df_1h, df_4h)."""
+    p1h = path_1h or DATA_PATH_1H
+    p4h = path_4h or DATA_PATH_4H
+    df1h = pd.read_csv(p1h, parse_dates=["timestamp"], index_col="timestamp")
+    df4h = pd.read_csv(p4h, parse_dates=["timestamp"], index_col="timestamp")
+    for d in [df1h, df4h]:
+        if d.index.tz is not None:
+            d.index = d.index.tz_localize(None)
+    return df1h, df4h
 
 
 def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute ADX regime + Donchian breakout signals (2-regime)."""
+    """Compute 1h ADX adaptive signals (same logic as 4h version, 1h parameters)."""
     df = df.copy()
     c, h, l = df["close"], df["high"], df["low"]
 
-    # ATR + ADX
+    delta = c.diff()
+    gain, loss = delta.clip(lower=0), (-delta).clip(lower=0)
+    avg_gain = gain.ewm(alpha=1 / RSI_PERIOD, min_periods=RSI_PERIOD).mean()
+    avg_loss = loss.ewm(alpha=1 / RSI_PERIOD, min_periods=RSI_PERIOD).mean()
+    df["rsi"] = 100 - 100 / (1 + avg_gain / avg_loss.replace(0, np.nan))
+
     tr1, tr2, tr3 = h - l, (h - c.shift()).abs(), (l - c.shift()).abs()
     tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
     atr = tr.ewm(alpha=1 / ADX_PERIOD, min_periods=ADX_PERIOD).mean()
@@ -75,59 +97,112 @@ def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     df["adx"] = dx.ewm(alpha=1 / ADX_PERIOD, min_periods=ADX_PERIOD).mean()
     df["atr"] = tr.ewm(alpha=1 / ATR_PERIOD, min_periods=ATR_PERIOD).mean()
 
-    # Donchian Channel
     df["dc_high"] = h.rolling(DC_PERIOD).max()
     df["dc_low"] = l.rolling(DC_PERIOD).min()
 
-    # Breakout signals (used by both trend and transition)
-    df["long_trend"] = c > df["dc_high"].shift(1)
-    df["short_trend"] = c < df["dc_low"].shift(1)
+    df["long_trend"] = c > df["dc_high"].shift(1)       # 突破做多
+    df["short_trend"] = c < df["dc_low"].shift(1)        # 跌破做空
+    df["long_mr"] = df["rsi"] < RSI_OVERSOLD             # 超卖做多
+    df["short_mr"] = df["rsi"] > RSI_OVERBOUGHT          # 超买做空
 
-    # 2-regime: trend (ADX > 30) / transition (ADX <= 30)
     df["is_trend"] = df["adx"] > ADX_TREND
-    df["is_transition"] = ~df["is_trend"]  # everything else
+    df["is_range"] = df["adx"] < ADX_RANGE
 
-    # Unified entry: Donchian breakout in both regimes
-    df["long_sig"] = df["long_trend"]
-    df["short_sig"] = df["short_trend"]
+    df["long_sig"] = (df["is_trend"] & df["long_trend"]) | (df["is_range"] & df["long_mr"])
+    df["short_sig"] = (df["is_trend"] & df["short_trend"]) | (df["is_range"] & df["short_mr"])
+    df["close_sig"] = df["is_range"] & (df["rsi"] > RSI_OVERBOUGHT)
+    df["cover_sig"] = df["is_range"] & (df["rsi"] < RSI_OVERSOLD)
+    df["close_trend"] = df["is_trend"] & df["short_trend"]
+    df["cover_trend"] = df["is_trend"] & df["long_trend"]
 
-    # Unified exit: reverse breakout
-    df["close_sig"] = df["short_trend"]
-    df["cover_sig"] = df["long_trend"]
-    df["close_trend"] = df["short_trend"]
-    df["cover_trend"] = df["long_trend"]
+    return df
+
+
+def compute_4h_regime(df_4h: pd.DataFrame) -> pd.DataFrame:
+    """Compute 4h ADX for regime filtering.
+
+    Returns DataFrame with 'adx_4h' column — used to determine whether
+    the higher-timeframe is in a trending state.
+    """
+    df = df_4h.copy()
+    c, h, l = df["close"], df["high"], df["low"]
+
+    tr1, tr2, tr3 = h - l, (h - c.shift()).abs(), (l - c.shift()).abs()
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr = tr.ewm(alpha=1 / REGIME_ADX_PERIOD, min_periods=REGIME_ADX_PERIOD).mean()
+    up, down = h - h.shift(), l.shift() - l
+    pdm = pd.Series(np.where((up > down) & (up > 0), up, 0.0), index=df.index)
+    ndm = pd.Series(np.where((down > up) & (down > 0), down, 0.0), index=df.index)
+    pdi = 100 * (pdm.ewm(alpha=1 / REGIME_ADX_PERIOD, min_periods=REGIME_ADX_PERIOD).mean() / atr.replace(0, np.nan))
+    ndi = 100 * (ndm.ewm(alpha=1 / REGIME_ADX_PERIOD, min_periods=REGIME_ADX_PERIOD).mean() / atr.replace(0, np.nan))
+    dx = 100 * (pdi - ndi).abs() / (pdi + ndi).replace(0, np.nan)
+    df["adx_4h"] = dx.ewm(alpha=1 / REGIME_ADX_PERIOD, min_periods=REGIME_ADX_PERIOD).mean()
+
+    return df[["adx_4h"]]
+
+
+def apply_regime_filter(df_1h: pd.DataFrame, df_4h_regime: pd.DataFrame) -> pd.DataFrame:
+    """Suppress 1h long_sig/short_sig when 4h ADX <= REGIME_ADX_THRESHOLD.
+
+    ffill is causal: at any 1h bar, only the last completed 4h bar's ADX
+    is known — no future information leaks.
+    """
+    df_4h_aligned = df_4h_regime.reindex(df_1h.index, method="ffill")
+    df = pd.concat([df_1h, df_4h_aligned], axis=1)
+
+    sig_before = int(df["long_sig"].sum() + df["short_sig"].sum())
+
+    for i in range(len(df)):
+        row = df.iloc[i]
+        adx4 = row.get("adx_4h", np.nan)
+        in_trend = not pd.isna(adx4) and adx4 > REGIME_ADX_THRESHOLD
+
+        if bool(row["long_sig"]) and not in_trend:
+            df.iloc[i, df.columns.get_loc("long_sig")] = False
+        if bool(row["short_sig"]) and not in_trend:
+            df.iloc[i, df.columns.get_loc("short_sig")] = False
+
+    sig_after = int(df["long_sig"].sum() + df["short_sig"].sum())
+    removed = round((1 - sig_after / sig_before) * 100, 1) if sig_before else 0
+    logger.info(
+        f"Regime filter: {sig_before} → {sig_after} signals "
+        f"(-{removed}%), 4h ADX > {REGIME_ADX_THRESHOLD}"
+    )
 
     return df
 
 
 SANITY_MODE = False  # True → 1 contract, 1x, no risk sizing
 
+
 def calc_contracts(equity: float, price: float, atr_val: float, leverage: float) -> float:
-    """计算合约张数: 风险/笔固定，波动大→仓位小。"""
+    """Position sizing: fixed risk per trade, larger ATR → smaller position."""
     if SANITY_MODE:
-        return 1.0 / price  # 1 unit of notional at current price
+        return 1.0 / price
     if atr_val <= 0:
         atr_val = price * 0.02
     risk_amount = equity * RISK_PER_TRADE
     stop_dist = atr_val * ATR_TRAIL_MULT
-    raw_value = risk_amount / (stop_dist / price)  # position notional
-    lev_value = equity * leverage                   # max with leverage
+    raw_value = risk_amount / (stop_dist / price)
+    lev_value = equity * leverage
     return min(raw_value, lev_value) / price
 
 
 def _preflight(df: pd.DataFrame) -> None:
-    """强制前视偏差检查。不通过则 raise AssertionError，回测无法执行。"""
-    sig_cols = ["long_sig", "short_sig", "close_sig", "cover_sig",
-                "close_trend", "cover_trend", "long_trend", "short_trend",
-                "is_trend", "is_transition"]
-    indicator_cols = ["adx", "atr"]
+    """Forward-looking bias check. Raises AssertionError if violated."""
+    sig_cols = [
+        "long_sig", "short_sig", "close_sig", "cover_sig",
+        "close_trend", "cover_trend", "long_trend", "short_trend",
+        "long_mr", "short_mr", "is_trend", "is_range",
+    ]
+    indicator_cols = ["adx", "rsi", "atr", "adx_4h"]
 
-    # 1. 列存在
+    # 1. Column existence
     missing = [c for c in sig_cols + indicator_cols if c not in df.columns]
     assert not missing, f"Missing columns: {missing}"
 
-    # 2. 信号列 NaN 检查 — 预热期后的 NaN 意味着 shift/rolling 缺陷
-    warmup = 30  # max(ADX=14, DC=20, ATR=14, RSI=14) + margin
+    # 2. NaN check — post-warmup NaN = shift/rolling defect
+    warmup = 30
     post_warmup = df.iloc[warmup:]
     for col in sig_cols:
         nan_count = post_warmup[col].isna().sum()
@@ -136,7 +211,7 @@ def _preflight(df: pd.DataFrame) -> None:
             f"Check shift()/rolling() alignment."
         )
 
-    # 3. 信号列必须是布尔/整数（0/1），不允许浮点 leak
+    # 3. Signal columns must be bool/int (float may leak future data)
     for col in sig_cols:
         if df[col].dtype == bool or df[col].dtype in (np.dtype("int64"), np.dtype("int32")):
             continue
@@ -146,31 +221,29 @@ def _preflight(df: pd.DataFrame) -> None:
             f"Float signals may carry forward-looking bias."
         )
 
-    # 4. OHLC 逻辑一致性 — 基本数据质量
+    # 4. OHLC logic consistency
     ohlc_ok = (df["high"] >= df[["open", "close", "low"]].max(axis=1)) & (
         df["low"] <= df[["open", "close", "high"]].min(axis=1)
     )
     violations = (~ohlc_ok).sum()
     assert violations == 0, f"{violations} OHLC logic violations in data"
 
-    # 5. 数据分割 — DatetimeIndex 严格单调递增，禁止 shuffle
+    # 5. DatetimeIndex strictly monotonic, no duplicates
     assert isinstance(df.index, pd.DatetimeIndex), (
-        f"Index must be DatetimeIndex, got {type(df.index).__name__}. "
-        f"Data may have been shuffled or improperly loaded."
+        f"Index must be DatetimeIndex, got {type(df.index).__name__}."
     )
-    assert df.index.is_monotonic_increasing, (
-        "Timestamps not monotonically increasing. "
-        "Data has been shuffled — time-series order is mandatory."
-    )
+    assert df.index.is_monotonic_increasing, "Timestamps not monotonically increasing."
     dup_count = df.index.duplicated().sum()
     assert dup_count == 0, f"{dup_count} duplicate timestamps found"
 
-    logger.info(f"Preflight PASS: {len(sig_cols)} signals, "
-                f"{len(indicator_cols)} indicators, {len(df)} bars, {warmup}-bar warm-up")
+    logger.info(
+        f"Preflight PASS: {len(sig_cols)} signals, "
+        f"{len(indicator_cols)} indicators, {len(df)} bars, {warmup}-bar warm-up"
+    )
 
 
 def run_backtest(df: pd.DataFrame) -> dict:
-    """Bar-by-bar backtest. 2-regime: trend (ADX>30) / transition (ADX<=30)."""
+    """Bar-by-bar backtest engine (timeframe-agnostic)."""
     _preflight(df)
 
     trades: list[dict] = []
@@ -180,7 +253,7 @@ def run_backtest(df: pd.DataFrame) -> dict:
     contracts: float = 0.0
     entry_regime: str = ""
     trail_stop: float = 0.0
-    entry_trail_mult: float = 0.0
+    hard_stop: float = 0.0
 
     equity = [1.0]
     peak = 1.0
@@ -194,14 +267,13 @@ def run_backtest(df: pd.DataFrame) -> dict:
         atr_val = float(row.get("atr", 0) or 0)
         in_cooldown = i < cooldown_until
 
-        # ── 强平检查 ──
+        # ── Liquidation check ──
         if pos_side != 0:
             margin = (contracts * price) / MAX_LEVERAGE
             if equity[-1] <= 0 or (margin > 0 and equity[-1] < margin * (1 - LIQ_THRESHOLD)):
-                # Liquidation
-                if pos_side == 1:  # long: sell to close
+                if pos_side == 1:
                     pnl = (exit_value(price) - entry_price) * contracts
-                else:  # short: buy to cover
+                else:
                     pnl = (entry_price - entry_cost(price)) * contracts
                 ret = pnl / entry_equity
                 trades[-1]["exit_reason"] = "liquidated"
@@ -218,20 +290,24 @@ def run_backtest(df: pd.DataFrame) -> dict:
                 pos_side = 0
                 continue
 
-        # ── Exit: trail stop or reverse breakout ──
+        # ── Stop / Exit ──
         if pos_side != 0:
             stop_hit = False
             reason = ""
             if pos_side == 1:
                 if price < trail_stop:
                     stop_hit = True; reason = "trail_stop"
-                elif bool(row["close_trend"]):
+                elif bool(row["close_sig"]) or bool(row["close_trend"]):
                     stop_hit = True; reason = "signal"
+                elif entry_regime == "mr" and price < hard_stop:
+                    stop_hit = True; reason = "hard_stop"
             else:
                 if price > trail_stop:
                     stop_hit = True; reason = "trail_stop"
-                elif bool(row["cover_trend"]):
+                elif bool(row["cover_sig"]) or bool(row["cover_trend"]):
                     stop_hit = True; reason = "signal"
+                elif entry_regime == "mr" and price > hard_stop:
+                    stop_hit = True; reason = "hard_stop"
 
             if stop_hit:
                 if pos_side == 1:
@@ -253,46 +329,46 @@ def run_backtest(df: pd.DataFrame) -> dict:
                 pos_side = 0
                 continue
 
-        # ── Entry: Donchian breakout, regime determines stop width ──
+        # ── Entry ──
         if pos_side == 0 and not in_cooldown:
             enter_long = bool(row["long_sig"])
             enter_short = bool(row["short_sig"])
             if enter_long or enter_short:
                 contracts = calc_contracts(equity[-1], price, atr_val, MAX_LEVERAGE)
-                if bool(row["is_trend"]):
-                    entry_regime = "trend"
-                    tmult = ATR_TRAIL_MULT
-                else:
-                    entry_regime = "transition"
-                    tmult = TRAN_ATR_TRAIL_MULT
                 if enter_long:
                     pos_side = 1
                     ep = entry_cost(price)
                     entry_price = ep
                     entry_equity = equity[-1]
-                    entry_trail_mult = tmult
-                    trail_stop = price - atr_val * tmult
+                    entry_regime = "trend" if bool(row["is_trend"]) else "mr"
+                    trail_stop = price - atr_val * ATR_TRAIL_MULT
+                    hard_stop = price - atr_val * MR_ATR_STOP_MULT
                 else:
                     pos_side = -1
                     ep = exit_value(price)
                     entry_price = ep
                     entry_equity = equity[-1]
-                    entry_trail_mult = tmult
-                    trail_stop = price + atr_val * tmult
+                    entry_regime = "trend" if bool(row["is_trend"]) else "mr"
+                    trail_stop = price + atr_val * ATR_TRAIL_MULT
+                    hard_stop = price + atr_val * MR_ATR_STOP_MULT
                 trades.append({
-                    "entry_time": df.index[i], "entry_price": ep,
-                    "contracts": contracts, "side": "LONG" if pos_side == 1 else "SHORT",
-                    "regime": entry_regime, "exit_reason": None,
-                    "exit_price": None, "return": None,
+                    "entry_time": df.index[i],
+                    "entry_price": ep,
+                    "contracts": contracts,
+                    "side": "LONG" if pos_side == 1 else "SHORT",
+                    "regime": entry_regime,
+                    "exit_reason": None,
+                    "exit_price": None,
+                    "return": None,
                 })
                 equity.append(equity[-1])
                 continue
 
-        # ── 跟踪止损（使用入场时记录的乘数，避免跨 regime 不一致）──
+        # ── Trailing stop update ──
         if pos_side == 1:
-            trail_stop = max(trail_stop, price - atr_val * entry_trail_mult)
+            trail_stop = max(trail_stop, price - atr_val * ATR_TRAIL_MULT)
         elif pos_side == -1:
-            trail_stop = min(trail_stop, price + atr_val * entry_trail_mult)
+            trail_stop = min(trail_stop, price + atr_val * ATR_TRAIL_MULT)
 
         # ── MTM + Funding ──
         if pos_side != 0:
@@ -309,7 +385,7 @@ def run_backtest(df: pd.DataFrame) -> dict:
         else:
             equity.append(equity[-1])
 
-    # 最终平仓
+    # ── End-of-data forced close ──
     if pos_side != 0:
         last_px = float(df.iloc[-1]["close"])
         if pos_side == 1:
@@ -328,7 +404,13 @@ def run_backtest(df: pd.DataFrame) -> dict:
     return _summarize(equity_series, benchmark, trades, df)
 
 
-def _summarize(equity: pd.Series, benchmark: pd.Series, trades: list[dict], df: pd.DataFrame) -> dict:
+def _summarize(
+    equity: pd.Series,
+    benchmark: pd.Series,
+    trades: list[dict],
+    df: pd.DataFrame,
+) -> dict:
+    """Compute all strategy metrics from equity curve, benchmark, and trades."""
     completed = [t for t in trades if t["return"] is not None]
     n = len(completed)
     if n == 0:
@@ -340,24 +422,24 @@ def _summarize(equity: pd.Series, benchmark: pd.Series, trades: list[dict], df: 
 
     total_ret = float(equity.iloc[-1] - 1)
     n_years = (equity.index[-1] - equity.index[0]).days / 365.25
-    ann_ret = float((1+total_ret)**(1/n_years)-1) if n_years > 0 and total_ret > -1 else 0
+    ann_ret = float((1 + total_ret) ** (1 / n_years) - 1) if n_years > 0 and total_ret > -1 else 0
 
     peak = equity.expanding().max()
     dd_series = (peak - equity) / peak
     max_dd = float(dd_series.max())
 
     daily_rets = equity.pct_change().dropna()
-    ann_vol = float(daily_rets.std() * np.sqrt(365.25 * 6))
+    ann_vol = float(daily_rets.std() * np.sqrt(365.25 * 24))
     sharpe = ann_ret / ann_vol if ann_vol > 0 else 0
     calmar = ann_ret / max_dd if max_dd > 0 else 0
 
     bench_ret = float(benchmark.iloc[-1] - 1)
-    bench_ann = float((1+bench_ret)**(1/n_years)-1) if n_years > 0 else 0
+    bench_ann = float((1 + bench_ret) ** (1 / n_years) - 1) if n_years > 0 else 0
 
     long_trades = [t for t in completed if t.get("side") == "LONG"]
     short_trades = [t for t in completed if t.get("side") == "SHORT"]
     trend_trades = [t for t in completed if t.get("regime") == "trend"]
-    trans_trades = [t for t in completed if t.get("regime") == "transition"]
+    mr_trades = [t for t in completed if t.get("regime") == "mr"]
     stops = [t for t in completed if "stop" in str(t.get("exit_reason", ""))]
     liqs = [t for t in completed if "liquid" in str(t.get("exit_reason", ""))]
 
@@ -365,9 +447,12 @@ def _summarize(equity: pd.Series, benchmark: pd.Series, trades: list[dict], df: 
     for t in completed:
         if "entry_time" in t and "exit_time" in t:
             try:
-                h = (pd.Timestamp(t["exit_time"]) - pd.Timestamp(t["entry_time"])).total_seconds() / 3600
+                h = (
+                    pd.Timestamp(t["exit_time"]) - pd.Timestamp(t["entry_time"])
+                ).total_seconds() / 3600
                 holding_hours.append(h)
-            except: pass
+            except Exception:
+                pass
 
     return {
         "total_return": round(total_ret * 100, 2),
@@ -377,39 +462,53 @@ def _summarize(equity: pd.Series, benchmark: pd.Series, trades: list[dict], df: 
         "calmar_ratio": round(calmar, 3),
         "ann_volatility": round(ann_vol * 100, 2),
         "num_trades": n,
-        "long_trades": len(long_trades), "short_trades": len(short_trades),
-        "trend_trades": len(trend_trades), "trans_trades": len(trans_trades),
-        "win_rate": round(len(wins)/n*100, 1) if n else 0,
-        "avg_return": round(np.mean(rets)*100, 2),
-        "avg_win": round(np.mean(wins)*100, 2) if wins else 0,
-        "avg_loss": round(np.mean(losses)*100, 2) if losses else 0,
-        "profit_factor": round(abs(sum(wins)/sum(losses)), 2) if wins and sum(losses) != 0 else 0,
-        "stop_outs": len(stops), "liquidations": len(liqs),
-        "benchmark_return": round(bench_ret*100, 2),
-        "benchmark_annual": round(bench_ann*100, 2),
-        "excess_return": round((ann_ret-bench_ann)*100, 2),
+        "long_trades": len(long_trades),
+        "short_trades": len(short_trades),
+        "trend_trades": len(trend_trades),
+        "mr_trades": len(mr_trades),
+        "win_rate": round(len(wins) / n * 100, 1) if n else 0,
+        "avg_return": round(np.mean(rets) * 100, 2),
+        "avg_win": round(np.mean(wins) * 100, 2) if wins else 0,
+        "avg_loss": round(np.mean(losses) * 100, 2) if losses else 0,
+        "profit_factor": (
+            round(abs(sum(wins) / sum(losses)), 2)
+            if wins and sum(losses) != 0
+            else 0
+        ),
+        "stop_outs": len(stops),
+        "liquidations": len(liqs),
+        "benchmark_return": round(bench_ret * 100, 2),
+        "benchmark_annual": round(bench_ann * 100, 2),
+        "excess_return": round((ann_ret - bench_ann) * 100, 2),
         "max_holding_hours": round(max(holding_hours), 1) if holding_hours else 0,
         "avg_holding_hours": round(np.mean(holding_hours), 1) if holding_hours else 0,
-        "equity_curve": equity, "trades": completed,
-        "data_start": str(df.index[0]), "data_end": str(df.index[-1]),
+        "equity_curve": equity,
+        "trades": completed,
+        "data_start": str(df.index[0]),
+        "data_end": str(df.index[-1]),
         "data_bars": len(df),
     }
 
 
 def print_report(r: dict) -> None:
+    """Formatted console output."""
     if "error" in r:
-        print(f"ERROR: {r['error']}"); return
-    print(f"\n{'='*60}")
-    print(f"ADX Adaptive + Perps {MAX_LEVERAGE:.0f}x Lev — 4h (2-regime)")
-    print(f"{'='*60}")
-    print(f"  Strategy Params:")
-    print(f"    ADX: period={ADX_PERIOD} trend>{ADX_TREND}")
-    print(f"    Donchian: {DC_PERIOD}  |  ATR trail: trend={ATR_TRAIL_MULT}x  trans={TRAN_ATR_TRAIL_MULT}x")
+        print(f"ERROR: {r['error']}")
+        return
+    print(f"\n{'=' * 65}")
+    print(f"ADX Adaptive MTF 1h+4h — Perps {MAX_LEVERAGE:.0f}x Lev")
+    print(f"{'=' * 65}")
+    print(f"  1h Params:")
+    print(f"    ADX: period={ADX_PERIOD} trend>{ADX_TREND} range<{ADX_RANGE}")
+    print(f"    Donchian: {DC_PERIOD}  |  RSI: {RSI_PERIOD} ({RSI_OVERSOLD}/{RSI_OVERBOUGHT})")
+    print(f"    ATR trail: {ATR_TRAIL_MULT}x  |  MR hard stop: {MR_ATR_STOP_MULT}x")
+    print(f"  4h Regime Filter:")
+    print(f"    Only trade when 4h ADX > {REGIME_ADX_THRESHOLD}")
     print(f"  Costs & Risk:")
-    print(f"    Fee={FEE*100:.2f}%  Slippage={SLIPPAGE*100:.2f}%  Funding={FUNDING_RATE*100:.4f}%/bar")
-    print(f"    Risk={RISK_PER_TRADE*100:.0f}%/trade  Lev={MAX_LEVERAGE:.0f}x  CB={CB_MAX_LOSSES}L/{CB_COOLDOWN}bar")
-    print(f"    Liq threshold={LIQ_THRESHOLD*100:.0f}%")
-    print(f"{'='*60}")
+    print(f"    Fee={FEE * 100:.2f}%  Slippage={SLIPPAGE * 100:.2f}%  Funding={FUNDING_RATE * 100:.4f}%/bar (1h)")
+    print(f"    Risk={RISK_PER_TRADE * 100:.0f}%/trade  Lev={MAX_LEVERAGE:.0f}x  CB={CB_MAX_LOSSES}L/{CB_COOLDOWN}bar")
+    print(f"    Liq threshold={LIQ_THRESHOLD * 100:.0f}%")
+    print(f"{'=' * 65}")
     print(f"  Total Return:         {r['total_return']:>+8.2f}%")
     print(f"  Annual Return:        {r['annual_return']:>+8.2f}%")
     print(f"  Max Drawdown:         {r['max_drawdown']:>8.2f}%")
@@ -417,15 +516,33 @@ def print_report(r: dict) -> None:
     print(f"  Calmar Ratio:         {r['calmar_ratio']:>8.3f}")
     print(f"  Annual Volatility:    {r['ann_volatility']:>8.2f}%")
     print()
-    print(f"  Trades: {r['num_trades']} (L:{r['long_trades']} S:{r['short_trades']} | Trend:{r['trend_trades']} Trans:{r['trans_trades']})")
-    print(f"  Win Rate: {r['win_rate']}% | Avg Win: {r['avg_win']:+.2f}% | Avg Loss: {r['avg_loss']:+.2f}%")
-    print(f"  Profit Factor: {r['profit_factor']} | Stops: {r['stop_outs']} | Liqs: {r['liquidations']}")
-    print(f"  Max Holding: {r['max_holding_hours']:.0f}h | Avg: {r['avg_holding_hours']:.0f}h")
+    print(
+        f"  Trades: {r['num_trades']} "
+        f"(L:{r['long_trades']} S:{r['short_trades']} "
+        f"| Trend:{r['trend_trades']} MR:{r['mr_trades']})"
+    )
+    print(
+        f"  Win Rate: {r['win_rate']}% "
+        f"| Avg Win: {r['avg_win']:+.2f}% "
+        f"| Avg Loss: {r['avg_loss']:+.2f}%"
+    )
+    print(
+        f"  Profit Factor: {r['profit_factor']} "
+        f"| Stops: {r['stop_outs']} "
+        f"| Liqs: {r['liquidations']}"
+    )
+    print(
+        f"  Max Holding: {r['max_holding_hours']:.0f}h "
+        f"| Avg: {r['avg_holding_hours']:.0f}h"
+    )
     print()
     print(f"  Benchmark (B&H ETH):  {r['benchmark_return']:>+8.2f}%")
     print(f"  Excess over B&H:      {r['excess_return']:>+8.2f}%")
-    print(f"  Data: {r.get('data_start', 'N/A')} — {r.get('data_end', 'N/A')} ({r.get('data_bars', 'N/A')} bars)")
-    print(f"{'='*60}\n")
+    print(
+        f"  Data: {r.get('data_start', 'N/A')} — "
+        f"{r.get('data_end', 'N/A')} ({r.get('data_bars', 'N/A')} bars)"
+    )
+    print(f"{'=' * 65}\n")
 
 
 def _run_sanity(df_orig: pd.DataFrame) -> bool:
@@ -435,13 +552,12 @@ def _run_sanity(df_orig: pd.DataFrame) -> bool:
     warmup = 30
     all_ok = True
 
-    # Enter sanity mode: 1 contract, no risk sizing, no stops
     setattr(sys.modules[__name__], "SANITY_MODE", True)
     saved = {}
-    for attr in ["ATR_TRAIL_MULT", "TRAN_ATR_TRAIL_MULT", "MAX_LEVERAGE"]:
+    for attr in ["ATR_TRAIL_MULT", "MR_ATR_STOP_MULT", "MAX_LEVERAGE"]:
         saved[attr] = getattr(sys.modules[__name__], attr)
     setattr(sys.modules[__name__], "ATR_TRAIL_MULT", 999.0)
-    setattr(sys.modules[__name__], "TRAN_ATR_TRAIL_MULT", 999.0)
+    setattr(sys.modules[__name__], "MR_ATR_STOP_MULT", 999.0)
     setattr(sys.modules[__name__], "MAX_LEVERAGE", 1.0)
 
     def _restore():
@@ -468,11 +584,16 @@ def _run_sanity(df_orig: pd.DataFrame) -> bool:
         exit_px = df.iloc[-1]["close"]
         expected_pct = (exit_value(exit_px) / entry_cost(entry_px) - 1) * 100
         actual_pct = trade["return"] * 100
-        # funding accumulates over multi-year hold, allow 5% drift
         if abs(actual_pct - expected_pct) > 5.0:
-            logger.warning(f"Sanity WARN: Hold PnL {actual_pct:+.2f}% vs manual {expected_pct:+.2f}%")
+            logger.warning(
+                f"Sanity WARN: Hold PnL {actual_pct:+.2f}% vs "
+                f"manual {expected_pct:+.2f}%"
+            )
         else:
-            logger.info(f"Sanity PASS: Hold-to-end PnL {actual_pct:+.2f}% = manual {expected_pct:+.2f}%")
+            logger.info(
+                f"Sanity PASS: Hold-to-end PnL {actual_pct:+.2f}% = "
+                f"manual {expected_pct:+.2f}%"
+            )
 
     # ── Test 2: All signals off → zero trades ──
     df = df_orig.copy()
@@ -486,7 +607,7 @@ def _run_sanity(df_orig: pd.DataFrame) -> bool:
             logger.error(f"SANITY FAIL: Zero-signal executed {r['num_trades']} trades")
             all_ok = False
         else:
-            logger.info(f"Sanity PASS: Zero-signal → 0 trades")
+            logger.info("Sanity PASS: Zero-signal → 0 trades")
     elif r["error"] == "no trades":
         logger.info("Sanity PASS: Zero-signal → no trades (expected)")
     else:
@@ -505,7 +626,9 @@ def _run_sanity(df_orig: pd.DataFrame) -> bool:
 
     r = run_backtest(df)
     if r["num_trades"] != 1:
-        logger.error(f"SANITY FAIL: Fixed-trade executed {r['num_trades']} trades, expected 1")
+        logger.error(
+            f"SANITY FAIL: Fixed-trade executed {r['num_trades']} trades, expected 1"
+        )
         all_ok = False
     else:
         trade = r["trades"][0]
@@ -514,27 +637,45 @@ def _run_sanity(df_orig: pd.DataFrame) -> bool:
         expected_pct = (exit_value(exit_px) / entry_cost(entry_px) - 1) * 100
         actual_pct = trade["return"] * 100
         if abs(actual_pct - expected_pct) > 0.5:
-            logger.warning(f"Sanity WARN: Fixed-trade PnL {actual_pct:+.2f}% vs manual {expected_pct:+.2f}%")
+            logger.warning(
+                f"Sanity WARN: Fixed-trade PnL {actual_pct:+.2f}% vs "
+                f"manual {expected_pct:+.2f}%"
+            )
         else:
-            logger.info(f"Sanity PASS: Fixed-trade PnL {actual_pct:+.2f}% = manual {expected_pct:+.2f}%")
+            logger.info(
+                f"Sanity PASS: Fixed-trade PnL {actual_pct:+.2f}% = "
+                f"manual {expected_pct:+.2f}%"
+            )
 
     _restore()
     return all_ok
 
 
 def main() -> int:
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else DATA_PATH
-    logger.info(f"Loading data: {path}")
-    df = load_data(path)
-    df = compute_signals(df)
+    path_1h = Path(sys.argv[1]) if len(sys.argv) > 1 else DATA_PATH_1H
+    path_4h = Path(sys.argv[2]) if len(sys.argv) > 2 else DATA_PATH_4H
 
-    if not _run_sanity(df):
-        logger.error("Sanity tests FAILED — backtest results not trustworthy. Aborting.")
+    logger.info(f"Loading 1h data: {path_1h}")
+    logger.info(f"Loading 4h data: {path_4h}")
+    df_1h, df_4h = load_data(path_1h, path_4h)
+
+    # Compute 1h signals
+    df_1h = compute_signals(df_1h)
+
+    # Compute 4h regime and apply filter
+    df_4h_regime = compute_4h_regime(df_4h)
+    df_filtered = apply_regime_filter(df_1h, df_4h_regime)
+
+    if not _run_sanity(df_filtered):
+        logger.error(
+            "Sanity tests FAILED — backtest results not trustworthy. Aborting."
+        )
         return 1
 
-    results = run_backtest(df)
+    results = run_backtest(df_filtered)
     print_report(results)
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

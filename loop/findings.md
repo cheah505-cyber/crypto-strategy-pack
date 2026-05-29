@@ -1,5 +1,24 @@
 # 回测发现记录
 
+### 2026-05-30: Final Baseline — 2-Regime Donchian Breakout + 10% Risk
+
+- **Final config**: `adx_adaptive_perp_eth_4h.py` — ADX>30 trend (2.5x ATR) / ADX≤30 transition (0.8x ATR), 10% risk/trade, 10x max leverage.
+- **Evolution**: Old trend-only (85 trades, WF WARN) → +transition 1.5x → +opt 1.0x → +simplify 2-regime → +opt 0.8x → +risk 10%. Final: 246 trades, Sharpe 1.12, DD 59%, WF PASS +1,216% Cum OOS.
+- **Last 12 months**: $10K → $21,062 (+111%), Sharpe 1.42, max DD 58.5%, 71 trades, 0 liqs. ETH B&H -23.2%.
+- **Predictive signals tested (ALL REJECTED)**: ADX slope (IC=-0.02, p>0.05), BB squeeze (range contracts not expands), Funding rate (filters degrade Sharpe 1.26→1.04). None improve the strategy.
+- **Why this works**: Donchian breakouts capture trend direction; ADX-scaled ATR stops adjust risk to volatility; 2-regime simplicity avoids MR noise; 10% risk compounds aggressively while ATR sizing prevents liquidation.
+- **Architecture**: 480 lines, self-contained. compute_signals (Donchian + ADX), run_backtest (bar-by-bar with trailing stops, circuit breaker), _preflight (forward-bias guard), _run_sanity (3 engine tests). No RSI, no hard stops, no external filters.
+
+### 2026-05-30: MTF Strategy Integration — 1h+4h Regime Filter as Complementary Variant
+
+- **Action**: Created `backtests/adx_adaptive_perp_eth_1h4h.py` — self-contained MTF strategy. 1h primary signals (ADX>30/<15, ATR 4.2x) filtered by 4h regime (only trade when 4h ADX > 30).
+- **Annualization correction**: Previous Sharpe 3.559 was inflated — experimental tools used 4h annualization factor (`√2192`) on 1h equity curve. Correct Sharpe: **1.729** (2023-2026 bull), **1.023** (2019-2026 full cycle). Corrected.
+- **Design**: Self-contained (no import dependency on 4h module). Engine functions copied from 4h file; `compute_4h_regime()` and `apply_regime_filter()` added.
+- **2023-2026 bull**: MTF Sharpe 1.729 vs 4h 1.402 (+23%), DD 28.7% vs 38.5% (-25%), 117 vs 85 trades. MTF wins in trending markets.
+- **2019-2026 full**: 4h Sharpe 1.303 vs MTF 1.023. MTF overly restrictive in bear — 4h ADX rarely > 30, signals suppressed 80.9%. 4h standalone wins on total return (+1,649% vs +394%).
+- **Conclusion**: MTF is a complementary variant, not a replacement. Best used in bull/trending regimes. 4h standalone remains the default baseline for full-cycle deployment.
+- **File**: `backtests/adx_adaptive_perp_eth_1h4h.py`. Sanity tests all PASS. 0 liquidations.
+
 ## 2026-05-22 ADX 自适应永续策略完整验证
 
 ### Phase 1 — VT Alpha Zoo 校准
