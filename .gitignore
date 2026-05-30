@@ -5,3 +5,5 @@ __pycache__/
 *.db
 data/
 results/
+/paper_trade/trades.csv
+!/paper_trade/equity.csv
