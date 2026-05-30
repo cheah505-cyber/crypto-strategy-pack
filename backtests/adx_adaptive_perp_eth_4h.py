@@ -45,6 +45,10 @@ RISK_PER_TRADE = 0.10            # 每笔风险 10%（WF validated 2026-05-30）
 CB_MAX_LOSSES, CB_COOLDOWN = 5, 24
 LIQ_THRESHOLD = 0.90  # 亏 90% 保证金 → 强平
 
+# 止损上限（仅截断极端尾部，P99.5+）
+MAX_STOP_PCT_TREND = 0.12   # 趋势止损上限 12%（ATR% P99.5×2.5 = 11.8%）
+MAX_STOP_PCT_TRANS = 0.05   # 过渡止损上限 5%（ATR% P99×0.8 = 3.4%）
+
 
 def entry_cost(price: float) -> float:
     return price * (1 + SLIPPAGE) * (1 + FEE)
@@ -189,6 +193,7 @@ def run_backtest(df: pd.DataFrame) -> dict:
     entry_regime: str = ""
     trail_stop: float = 0.0
     entry_trail_mult: float = 0.0
+    entry_max_stop: float = 0.0
 
     equity = [1.0]
     peak = 1.0
@@ -272,23 +277,25 @@ def run_backtest(df: pd.DataFrame) -> dict:
                 if bool(row["is_trend"]):
                     entry_regime = "trend"
                     tmult = ATR_TRAIL_MULT
+                    entry_max_stop = MAX_STOP_PCT_TREND
                 else:
                     entry_regime = "transition"
                     tmult = TRAN_ATR_TRAIL_MULT
+                    entry_max_stop = MAX_STOP_PCT_TRANS
+                entry_trail_mult = tmult
+                stop_dist = min(atr_pct_val / 100 * tmult, entry_max_stop)
                 if enter_long:
                     pos_side = 1
                     ep = entry_cost(price)
                     entry_price = ep
                     entry_equity = equity[-1]
-                    entry_trail_mult = tmult
-                    trail_stop = price * (1 - atr_pct_val / 100 * tmult)
+                    trail_stop = price * (1 - stop_dist)
                 else:
                     pos_side = -1
                     ep = exit_value(price)
                     entry_price = ep
                     entry_equity = equity[-1]
-                    entry_trail_mult = tmult
-                    trail_stop = price * (1 + atr_pct_val / 100 * tmult)
+                    trail_stop = price * (1 + stop_dist)
                 trades.append({
                     "entry_time": df.index[i], "entry_price": ep,
                     "contracts": contracts, "side": "LONG" if pos_side == 1 else "SHORT",
@@ -298,11 +305,13 @@ def run_backtest(df: pd.DataFrame) -> dict:
                 equity.append(equity[-1])
                 continue
 
-        # ── 跟踪止损（使用入场时记录的乘数，避免跨 regime 不一致）──
+        # ── 跟踪止损（使用入场时记录的乘数 + 止损上限）──
         if pos_side == 1:
-            trail_stop = max(trail_stop, price * (1 - atr_pct_val / 100 * entry_trail_mult))
+            stop_dist = min(atr_pct_val / 100 * entry_trail_mult, entry_max_stop)
+            trail_stop = max(trail_stop, price * (1 - stop_dist))
         elif pos_side == -1:
-            trail_stop = min(trail_stop, price * (1 + atr_pct_val / 100 * entry_trail_mult))
+            stop_dist = min(atr_pct_val / 100 * entry_trail_mult, entry_max_stop)
+            trail_stop = min(trail_stop, price * (1 + stop_dist))
 
         # ── MTM + Funding ──
         if pos_side != 0:
@@ -448,11 +457,14 @@ def _run_sanity(df_orig: pd.DataFrame) -> bool:
     # Enter sanity mode: 1 contract, no risk sizing, no stops
     setattr(sys.modules[__name__], "SANITY_MODE", True)
     saved = {}
-    for attr in ["ATR_TRAIL_MULT", "TRAN_ATR_TRAIL_MULT", "MAX_LEVERAGE"]:
+    for attr in ["ATR_TRAIL_MULT", "TRAN_ATR_TRAIL_MULT", "MAX_LEVERAGE",
+                 "MAX_STOP_PCT_TREND", "MAX_STOP_PCT_TRANS"]:
         saved[attr] = getattr(sys.modules[__name__], attr)
     setattr(sys.modules[__name__], "ATR_TRAIL_MULT", 999.0)
     setattr(sys.modules[__name__], "TRAN_ATR_TRAIL_MULT", 999.0)
     setattr(sys.modules[__name__], "MAX_LEVERAGE", 1.0)
+    setattr(sys.modules[__name__], "MAX_STOP_PCT_TREND", 999.0)
+    setattr(sys.modules[__name__], "MAX_STOP_PCT_TRANS", 999.0)
 
     def _restore():
         for attr, val in saved.items():
