@@ -75,6 +75,7 @@ def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     dx = 100 * (pdi - ndi).abs() / (pdi + ndi).replace(0, np.nan)
     df["adx"] = dx.ewm(alpha=1 / ADX_PERIOD, min_periods=ADX_PERIOD).mean()
     df["atr"] = tr.ewm(alpha=1 / ATR_PERIOD, min_periods=ATR_PERIOD).mean()
+    df["atr_pct"] = df["atr"] / df["close"] * 100  # 百分比化，跨价格等级可比
 
     # Donchian Channel
     df["dc_high"] = h.rolling(DC_PERIOD).max()
@@ -109,16 +110,16 @@ def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
 
 SANITY_MODE = False  # True → 1 contract, 1x, no risk sizing
 
-def calc_contracts(equity: float, price: float, atr_val: float, leverage: float) -> float:
-    """计算合约张数: 风险/笔固定，波动大→仓位小。"""
+def calc_contracts(equity: float, price: float, atr_pct: float, leverage: float) -> float:
+    """计算合约张数: 风险/笔固定，波动大→仓位小。atr_pct 为价格百分比。"""
     if SANITY_MODE:
-        return 1.0 / price  # 1 unit of notional at current price
-    if atr_val <= 0:
-        atr_val = price * 0.02
+        return 1.0 / price
+    if atr_pct <= 0:
+        atr_pct = 2.0  # 默认 2%（替代旧 0.02×price 硬编码）
     risk_amount = equity * RISK_PER_TRADE
-    stop_dist = atr_val * ATR_TRAIL_MULT
-    raw_value = risk_amount / (stop_dist / price)  # position notional
-    lev_value = equity * leverage                   # max with leverage
+    stop_dist_pct = atr_pct / 100 * ATR_TRAIL_MULT  # 止损距离（小数）
+    raw_value = risk_amount / stop_dist_pct           # 仓位名义价值
+    lev_value = equity * leverage
     return min(raw_value, lev_value) / price
 
 
@@ -127,7 +128,7 @@ def _preflight(df: pd.DataFrame) -> None:
     sig_cols = ["long_sig", "short_sig", "close_sig", "cover_sig",
                 "close_trend", "cover_trend", "long_trend", "short_trend",
                 "is_trend", "is_transition"]
-    indicator_cols = ["adx", "atr"]
+    indicator_cols = ["adx", "atr", "atr_pct"]
 
     # 1. 列存在
     missing = [c for c in sig_cols + indicator_cols if c not in df.columns]
@@ -198,7 +199,9 @@ def run_backtest(df: pd.DataFrame) -> dict:
     for i in range(len(df)):
         row = df.iloc[i]
         price = float(row["close"])
-        atr_val = float(row.get("atr", 0) or 0)
+        atr_pct_val = float(row.get("atr_pct", 0) or 0)
+        if pd.isna(atr_pct_val) or atr_pct_val <= 0:
+            atr_pct_val = 2.0  # 显式 NaN 守卫 + 合理默认值
         in_cooldown = i < cooldown_until
 
         # ── 强平检查 ──
@@ -265,7 +268,7 @@ def run_backtest(df: pd.DataFrame) -> dict:
             enter_long = bool(row["long_sig"])
             enter_short = bool(row["short_sig"])
             if enter_long or enter_short:
-                contracts = calc_contracts(equity[-1], price, atr_val, MAX_LEVERAGE)
+                contracts = calc_contracts(equity[-1], price, atr_pct_val, MAX_LEVERAGE)
                 if bool(row["is_trend"]):
                     entry_regime = "trend"
                     tmult = ATR_TRAIL_MULT
@@ -278,14 +281,14 @@ def run_backtest(df: pd.DataFrame) -> dict:
                     entry_price = ep
                     entry_equity = equity[-1]
                     entry_trail_mult = tmult
-                    trail_stop = price - atr_val * tmult
+                    trail_stop = price * (1 - atr_pct_val / 100 * tmult)
                 else:
                     pos_side = -1
                     ep = exit_value(price)
                     entry_price = ep
                     entry_equity = equity[-1]
                     entry_trail_mult = tmult
-                    trail_stop = price + atr_val * tmult
+                    trail_stop = price * (1 + atr_pct_val / 100 * tmult)
                 trades.append({
                     "entry_time": df.index[i], "entry_price": ep,
                     "contracts": contracts, "side": "LONG" if pos_side == 1 else "SHORT",
@@ -297,9 +300,9 @@ def run_backtest(df: pd.DataFrame) -> dict:
 
         # ── 跟踪止损（使用入场时记录的乘数，避免跨 regime 不一致）──
         if pos_side == 1:
-            trail_stop = max(trail_stop, price - atr_val * entry_trail_mult)
+            trail_stop = max(trail_stop, price * (1 - atr_pct_val / 100 * entry_trail_mult))
         elif pos_side == -1:
-            trail_stop = min(trail_stop, price + atr_val * entry_trail_mult)
+            trail_stop = min(trail_stop, price * (1 + atr_pct_val / 100 * entry_trail_mult))
 
         # ── MTM + Funding ──
         if pos_side != 0:
