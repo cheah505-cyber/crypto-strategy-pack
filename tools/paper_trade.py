@@ -363,8 +363,11 @@ if events_this_run:
 if pos_side == 1:
     upnl = (last_price - entry_price) / entry_price * 100
     dist_to_stop = (last_price - trail_stop) / last_price * 100
+    notional = entry_contracts * last_price
+    margin = notional / LEVERAGE if LEVERAGE > 0 else 0
     print(f"🟢 做多 ({entry_regime})")
     print(f"入场价: ${entry_price:.2f} | 当前价: ${last_price:.2f}")
+    print(f"仓位: {entry_contracts:.4f} ETH | 名义: ${notional:.0f} | 保证金: ${margin:.1f}")
     print(f"移动止损: ${trail_stop:.2f} | 距止损: {dist_to_stop:+.1f}%")
     print(f"浮盈: {upnl:+.2f}%")
     print(f"━━━━━━━━━━━━")
@@ -373,8 +376,11 @@ if pos_side == 1:
 elif pos_side == -1:
     upnl = (entry_price - last_price) / entry_price * 100
     dist_to_stop = (trail_stop - last_price) / last_price * 100
+    notional = entry_contracts * last_price
+    margin = notional / LEVERAGE if LEVERAGE > 0 else 0
     print(f"🔴 做空 ({entry_regime})")
     print(f"入场价: ${entry_price:.2f} | 当前价: ${last_price:.2f}")
+    print(f"仓位: {entry_contracts:.4f} ETH | 名义: ${notional:.0f} | 保证金: ${margin:.1f}")
     print(f"移动止损: ${trail_stop:.2f} | 距止损: {dist_to_stop:+.1f}%")
     print(f"浮盈: {upnl:+.2f}%")
     print(f"━━━━━━━━━━━━")
