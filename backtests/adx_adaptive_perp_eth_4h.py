@@ -49,6 +49,9 @@ LIQ_THRESHOLD = 0.90  # 亏 90% 保证金 → 强平
 MAX_STOP_PCT_TREND = 0.12   # 趋势止损上限 12%（ATR% P99.5×2.5 = 11.8%）
 MAX_STOP_PCT_TRANS = 0.05   # 过渡止损上限 5%（ATR% P99×0.8 = 3.4%）
 
+# 波动率退出（ATR% 突破阈值 → 主动平仓，锁利润/浅止损）
+VOL_EXIT_THRESHOLD = 3.5    # ATR% > 3.5%（P97）→ 退出
+
 
 def entry_cost(price: float) -> float:
     return price * (1 + SLIPPAGE) * (1 + FEE)
@@ -208,6 +211,28 @@ def run_backtest(df: pd.DataFrame) -> dict:
         if pd.isna(atr_pct_val) or atr_pct_val <= 0:
             atr_pct_val = 2.0  # 显式 NaN 守卫 + 合理默认值
         in_cooldown = i < cooldown_until
+
+        # ── 波动率退出（ATR% 突破阈值 → 主动平仓，锁利润/浅止损）──
+        if pos_side != 0 and atr_pct_val > VOL_EXIT_THRESHOLD:
+            if pos_side == 1:
+                pnl = (exit_value(price) - entry_price) * contracts
+            else:
+                pnl = (entry_price - entry_cost(price)) * contracts
+            ret = pnl / entry_equity
+            trades[-1]["exit_reason"] = "vol_exit"
+            trades[-1]["exit_price"] = price
+            trades[-1]["return"] = ret
+            trades[-1]["exit_time"] = df.index[i]
+            new_eq = entry_equity + pnl
+            equity[-1] = max(new_eq, 0.0001)
+            peak = max(peak, equity[-1])
+            max_dd = max(max_dd, (peak - equity[-1]) / peak)
+            consec_losses = consec_losses + 1 if ret <= 0 else 0
+            if consec_losses >= CB_MAX_LOSSES:
+                cooldown_until = i + CB_COOLDOWN
+            pos_side = 0
+            equity.append(equity[-1])
+            continue
 
         # ── 强平检查 ──
         if pos_side != 0:
@@ -458,13 +483,14 @@ def _run_sanity(df_orig: pd.DataFrame) -> bool:
     setattr(sys.modules[__name__], "SANITY_MODE", True)
     saved = {}
     for attr in ["ATR_TRAIL_MULT", "TRAN_ATR_TRAIL_MULT", "MAX_LEVERAGE",
-                 "MAX_STOP_PCT_TREND", "MAX_STOP_PCT_TRANS"]:
+                 "MAX_STOP_PCT_TREND", "MAX_STOP_PCT_TRANS", "VOL_EXIT_THRESHOLD"]:
         saved[attr] = getattr(sys.modules[__name__], attr)
     setattr(sys.modules[__name__], "ATR_TRAIL_MULT", 999.0)
     setattr(sys.modules[__name__], "TRAN_ATR_TRAIL_MULT", 999.0)
     setattr(sys.modules[__name__], "MAX_LEVERAGE", 1.0)
     setattr(sys.modules[__name__], "MAX_STOP_PCT_TREND", 999.0)
     setattr(sys.modules[__name__], "MAX_STOP_PCT_TRANS", 999.0)
+    setattr(sys.modules[__name__], "VOL_EXIT_THRESHOLD", 999.0)
 
     def _restore():
         for attr, val in saved.items():
