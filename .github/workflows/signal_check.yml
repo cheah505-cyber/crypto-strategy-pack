@@ -6,6 +6,8 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
@@ -15,10 +17,19 @@ jobs:
           python-version: '3.12'
       - run: pip install pandas numpy ccxt
       - run: python tools/fetch_latest.py
-      - run: python tools/manual_signal.py > output.txt
+      - run: python tools/manual_signal.py > signal_output.txt
+      - run: python tools/paper_trade.py > paper_output.txt
+      - name: Commit paper trade state
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add paper_trade/ data/eth_usdt_4h.csv
+          git commit -m "paper trade update $(date -u +%Y-%m-%dT%H:%M)" || true
+          git push || true
       - name: Send Telegram
         if: always()
         env:
           TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: bash tools/send_telegram.sh
+        run: bash tools/send_telegram.sh signal_output.txt paper_output.txt

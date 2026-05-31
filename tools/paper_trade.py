@@ -355,14 +355,33 @@ if recorded_trades:
 # ── Telegram ──
 print("---TELEGRAM---")
 ret_total = (equity - INITIAL_CAPITAL) / INITIAL_CAPITAL * 100
+ts = str(new_bars.index[-1])[:16] if len(new_bars) > 0 else str(df.index[-1])[:16]
+print(f"💼 纸面交易 | {ts}")
 if events_this_run:
     for evt in events_this_run:
-        print(evt)
-elif pos_side == 1:
+        print(f"⚡ {evt}")
+if pos_side == 1:
     upnl = (last_price - entry_price) / entry_price * 100
-    print(f"做多持仓中 | 权益 ${equity:.0f} ({ret_total:+.0f}%) | 浮盈 {upnl:+.1f}%")
+    dist_to_stop = (last_price - trail_stop) / last_price * 100
+    print(f"🟢 做多 ({entry_regime})")
+    print(f"入场价: ${entry_price:.2f} | 当前价: ${last_price:.2f}")
+    print(f"移动止损: ${trail_stop:.2f} | 距止损: {dist_to_stop:+.1f}%")
+    print(f"浮盈: {upnl:+.2f}%")
+    print(f"━━━━━━━━━━━━")
+    print(f"权益: ${equity:.2f} ({ret_total:+.1f}%) | 最大回撤: {max_dd*100:.1f}%")
+    print(f"已平仓: #{trade_count} 笔 | 杠杆: {LEVERAGE}x | 风险: {RISK_PER_TRADE*100:.0f}%/笔")
 elif pos_side == -1:
     upnl = (entry_price - last_price) / entry_price * 100
-    print(f"做空持仓中 | 权益 ${equity:.0f} ({ret_total:+.0f}%) | 浮盈 {upnl:+.1f}%")
+    dist_to_stop = (trail_stop - last_price) / last_price * 100
+    print(f"🔴 做空 ({entry_regime})")
+    print(f"入场价: ${entry_price:.2f} | 当前价: ${last_price:.2f}")
+    print(f"移动止损: ${trail_stop:.2f} | 距止损: {dist_to_stop:+.1f}%")
+    print(f"浮盈: {upnl:+.2f}%")
+    print(f"━━━━━━━━━━━━")
+    print(f"权益: ${equity:.2f} ({ret_total:+.1f}%) | 最大回撤: {max_dd*100:.1f}%")
+    print(f"已平仓: #{trade_count} 笔 | 杠杆: {LEVERAGE}x | 风险: {RISK_PER_TRADE*100:.0f}%/笔")
 else:
-    print(f"空仓 | 权益 ${equity:.0f} ({ret_total:+.0f}%) | ${last_price:.0f}")
+    print(f"⚪ 空仓等待")
+    print(f"━━━━━━━━━━━━")
+    print(f"权益: ${equity:.2f} ({ret_total:+.1f}%) | 最大回撤: {max_dd*100:.1f}%")
+    print(f"已平仓: #{trade_count} 笔")

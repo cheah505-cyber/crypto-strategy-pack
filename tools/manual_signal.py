@@ -119,19 +119,44 @@ print()
 print(f"  ETH 24h: {((df['close'].iloc[-1] / df['close'].iloc[-7] - 1) * 100):+.1f}%")
 print(f"  ETH 周变化: {((df['close'].iloc[-1] / df['close'].iloc[-43] - 1) * 100):+.1f}%")
 
-# 输出简洁版给 Telegram
+# ── 详细输出给 Telegram ──
 print("---TELEGRAM---")
-if close_long or close_short:
-    side = "平多做空" if close_long else "平空做多"
-    print(f"平仓信号! {side} 当前 ${last_price:.0f}")
+ts = str(current.name)[:16]
+chg_24h = (df['close'].iloc[-1] / df['close'].iloc[-7] - 1) * 100
+chg_wk = (df['close'].iloc[-1] / df['close'].iloc[-43] - 1) * 100
+print(f"📊 ETH 4h 信号 | {ts}")
+print(f"价格: ${last_price:.0f} | ADX: {current['adx']:.0f} | {regime}")
+print(f"SMA100: ${sma100:.0f} | 24h: {chg_24h:+.1f}% | 周: {chg_wk:+.1f}%")
+if close_long:
+    print(f"🔔 平多信号! 离场 @ ${last_price:.0f}")
+elif close_short:
+    print(f"🔔 平空信号! 离场 @ ${last_price:.0f}")
 elif new_long:
-    print(f"做多信号! 入场 ${last_price:.0f} 止损 ${(last_price-atr*atr_mult):.0f} ({regime})")
+    stop = last_price - atr * atr_mult
+    risk_usd = CAPITAL * RISK_PER_TRADE
+    pos_size = min(risk_usd / ((last_price - stop) / last_price), CAPITAL * LEVERAGE) / last_price
+    notional = pos_size * last_price
+    margin = notional / LEVERAGE
+    print(f"🟢 做多信号 ({regime})")
+    print(f"入场: ${last_price:.0f} | 止损: ${stop:.0f} ({(stop/last_price-1)*100:+.1f}%)")
+    print(f"仓位: {pos_size:.4f} ETH | 名义: ${notional:.0f} | 保证金: ${margin:.1f}")
 elif new_short:
-    print(f"做空信号! 入场 ${last_price:.0f} 止损 ${(last_price+atr*atr_mult):.0f} ({regime})")
+    stop = last_price + atr * atr_mult
+    risk_usd = CAPITAL * RISK_PER_TRADE
+    pos_size = min(risk_usd / ((stop - last_price) / last_price), CAPITAL * LEVERAGE) / last_price
+    notional = pos_size * last_price
+    margin = notional / LEVERAGE
+    print(f"🔴 做空信号 ({regime})")
+    print(f"入场: ${last_price:.0f} | 止损: ${stop:.0f} ({(stop/last_price-1)*100:+.1f}%)")
+    print(f"仓位: {pos_size:.4f} ETH | 名义: ${notional:.0f} | 保证金: ${margin:.1f}")
 elif last_long:
-    print(f"做多持仓中 当前 ${last_price:.0f}")
+    trail = last_price - atr * atr_mult
+    print(f"🟢 做多持仓中 | 入场信号已触发")
+    print(f"当前价: ${last_price:.0f} | 移动止损: ${trail:.0f}")
 elif last_short:
-    print(f"做空持仓中 当前 ${last_price:.0f}")
+    trail = last_price + atr * atr_mult
+    print(f"🔴 做空持仓中 | 入场信号已触发")
+    print(f"当前价: ${last_price:.0f} | 移动止损: ${trail:.0f}")
 else:
-    print(f"空仓 ADX={current['adx']:.0f}")
+    print(f"⚪ 空仓等待 | 下次检查: {pd.Timestamp(current.name) + pd.Timedelta(hours=4)}")
 print()
