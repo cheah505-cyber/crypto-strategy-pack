@@ -4,10 +4,13 @@
 
 ```
 Python 回测引擎 (自建)  →  Crypto 项目 (因子研发+验证+决策)  →  Obsidian (知识沉淀)
+                                   ↓
+                    GitHub Actions (每 4h 信号+纸面交易)  →  Telegram 通知
 ```
 
 - **回测**: `backtests/adx_adaptive_perp_eth_4h.py` — 自建引擎，bar-by-bar，含 _preflight + _run_sanity
 - **分析**: 假设检验（p 值+效应量+置信区间）、因子开发、参数决策
+- **监控**: GitHub Actions 定时信号检查 + 纸面交易跟踪，Telegram 实时推送
 - **Obsidian**: 知识沉淀
 - 全部因子自建，零外部依赖
 
@@ -19,11 +22,21 @@ Python 3.12 + pandas + numpy + scikit-learn + PyTorch。交易所 CCXT (Binance)
 
 ```
 backtests/     ← 策略回测脚本（一个策略一个文件）
-tools/         ← 数据拉取、质量检查、验证、因子挖掘
+tools/         ← 数据拉取、质量检查、验证、因子挖掘、信号脚本
 strategies/    ← 可复用的因子/策略模块
 data/          ← 市场数据 CSV
 loop/          ← 回测循环：tasks.json（任务队列）、findings.md（发现记录）、results/（报告输出）
+paper_trade/   ← 纸面交易状态（state.json, trades.csv, equity.csv）
 ```
+
+## 监控与部署
+
+**GitHub Actions** `.github/workflows/signal_check.yml`：
+- 触发：每 4h (`0 */4 * * *`) + 手动 `workflow_dispatch`
+- 流程：`fetch_latest.py` → `manual_signal.py` → `paper_trade.py` → Telegram → 状态回写 git
+- 通知内容：信号（方向/入场/止损/仓位）+ 纸面交易（入场价/止损/浮盈/权益/回撤/仓位大小）
+- 状态持久化：`paper_trade/` 目录由 CI 自动 commit+push，跨运行保持仓位连续性
+- 交易所 fallback：OKX → KuCoin → Bybit → Binance（GitHub Actions IP 常被墙）
 
 ## 交易所约定
 
