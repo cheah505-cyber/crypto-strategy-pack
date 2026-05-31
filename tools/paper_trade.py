@@ -100,9 +100,42 @@ for i in range(len(new_bars)):
     bar_idx = new_bars.index[i]
     row = df.loc[bar_idx]
     price = float(row["close"])
-    atr_val = float(row.get("atr", 0) or 0) or price * 0.02
+    atr_pct_val = float(row.get("atr_pct", 0) or 0)
+    if pd.isna(atr_pct_val) or atr_pct_val <= 0:
+        atr_pct_val = 2.0
     bar_num = df.index.get_loc(bar_idx)
     in_cooldown = bar_num < cooldown_until
+
+    # ── Vol exit ──
+    if pos_side != 0 and atr_pct_val > s.VOL_EXIT_THRESHOLD:
+        if pos_side == 1:
+            pnl = (s.exit_value(price) - entry_price) * entry_contracts
+        else:
+            pnl = (entry_price - s.entry_cost(price)) * entry_contracts
+        ret = pnl / entry_equity if entry_equity > 0 else 0
+        ret_pct = round(ret * 100, 2)
+        trade_count += 1
+        recorded_trades.append({
+            "trade_id": trade_count,
+            "entry_time": str(entry_time),
+            "exit_time": str(bar_idx),
+            "side": "LONG" if pos_side == 1 else "SHORT",
+            "regime": entry_regime,
+            "entry_price": round(entry_price, 2),
+            "exit_price": round(price, 2),
+            "return_pct": ret_pct,
+            "exit_reason": "vol_exit",
+        })
+        side_cn = "多" if pos_side == 1 else "空"
+        events_this_run.append(f"波动率退出 {side_cn} {ret_pct:+.1f}% | 权益 ${equity:.0f}")
+        equity = max(entry_equity + pnl, 0.01)
+        peak = max(peak, equity)
+        max_dd = max(max_dd, (peak - equity) / peak if peak > 0 else 0)
+        consec_losses = consec_losses + 1 if ret <= 0 else 0
+        if consec_losses >= 5:
+            cooldown_until = bar_num + 24
+        pos_side = 0
+        continue
 
     # ── Liquidation check ──
     if pos_side != 0:
@@ -193,31 +226,37 @@ for i in range(len(new_bars)):
             if bool(row["is_trend"]):
                 entry_regime = "trend"
                 tmult = s.ATR_TRAIL_MULT
+                entry_max_stop = s.MAX_STOP_PCT_TREND
             else:
                 entry_regime = "transition"
                 tmult = s.TRAN_ATR_TRAIL_MULT
+                entry_max_stop = s.MAX_STOP_PCT_TRANS
 
-            entry_contracts = s.calc_contracts(equity, price, atr_val, LEVERAGE)
+            entry_contracts = s.calc_contracts(equity, price, atr_pct_val, LEVERAGE)
             events_this_run.append(f"{'做多' if enter_long else '做空'}入场 @ ${price:.0f} ({entry_regime})")
+            stop_dist = min(atr_pct_val / 100 * tmult, entry_max_stop)
             if enter_long:
                 pos_side = 1
                 entry_price = s.entry_cost(price)
                 entry_equity = equity
                 entry_time = str(bar_idx)
-                trail_stop = price - atr_val * tmult
+                trail_stop = price * (1 - stop_dist)
             else:
                 pos_side = -1
                 entry_price = s.exit_value(price)
                 entry_equity = equity
                 entry_time = str(bar_idx)
-                trail_stop = price + atr_val * tmult
+                trail_stop = price * (1 + stop_dist)
             continue
 
     # ── Trail stop update ──
+    tmult = s.ATR_TRAIL_MULT if entry_regime == "trend" else s.TRAN_ATR_TRAIL_MULT
+    max_stop = s.MAX_STOP_PCT_TREND if entry_regime == "trend" else s.MAX_STOP_PCT_TRANS
+    stop_dist = min(atr_pct_val / 100 * tmult, max_stop)
     if pos_side == 1:
-        trail_stop = max(trail_stop, price - atr_val * (s.ATR_TRAIL_MULT if entry_regime == "trend" else s.TRAN_ATR_TRAIL_MULT))
+        trail_stop = max(trail_stop, price * (1 - stop_dist))
     elif pos_side == -1:
-        trail_stop = min(trail_stop, price + atr_val * (s.ATR_TRAIL_MULT if entry_regime == "trend" else s.TRAN_ATR_TRAIL_MULT))
+        trail_stop = min(trail_stop, price * (1 + stop_dist))
 
     # ── MTM + Funding ──
     if pos_side != 0 and i > 0:
