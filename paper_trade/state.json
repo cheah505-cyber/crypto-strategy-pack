@@ -1,5 +1,5 @@
 {
-  "equity": 100.67695827728281,
+  "equity": 101.83837457765821,
   "peak": 104.8875483137821,
   "max_dd": 0.059990068304774484,
   "pos_side": -1,
@@ -8,9 +8,9 @@
   "entry_time": "2026-06-03 16:00:00",
   "entry_regime": "trend",
   "entry_contracts": 0.10237563539304748,
-  "trail_stop": 1903.7476485433458,
+  "trail_stop": 1879.7259524689325,
   "consec_losses": 0,
   "cooldown_until": -1,
   "trade_count": 2,
-  "last_processed": "2026-06-04 00:00:00"
+  "last_processed": "2026-06-04 08:00:00"
 }
