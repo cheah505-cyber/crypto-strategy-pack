@@ -4,7 +4,9 @@ Records every trade, equity curve, and daily status.
 Commits results to git for immutable public record.
 """
 
-import sys
+import io, sys
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 from pathlib import Path
 from datetime import datetime
 
@@ -41,7 +43,11 @@ df = load_data(ROOT / "data" / "eth_usdt_4h.csv")
 if df.index.tz is not None:
     df.index = df.index.tz_localize(None)
 
-df = compute_signals(df)
+data_ok = not df.empty and len(df) >= 100
+if data_ok:
+    df = compute_signals(df)
+else:
+    print(f"⚠️ 数据不足 (rows={len(df)})，使用已有状态")
 
 # ── Load or init state ──
 import json
@@ -304,37 +310,48 @@ if equity_history:
     pd.DataFrame(equity_history).to_csv(EQUITY_FILE, index=False)
 
 # ── Print status ──
-current = df.iloc[-1]
-last_price = float(current["close"])
-regime = "趋势" if bool(current["is_trend"]) else "过渡"
-atr_mult = s.ATR_TRAIL_MULT if bool(current["is_trend"]) else s.TRAN_ATR_TRAIL_MULT
-sma100 = float(current.get("sma100", 0) or 0)
-short_ok = "允许" if last_price <= sma100 else "禁止"
+if data_ok:
+    current = df.iloc[-1]
+    last_price = float(current["close"])
+    regime = "趋势" if bool(current["is_trend"]) else "过渡"
+    atr_mult = s.ATR_TRAIL_MULT if bool(current["is_trend"]) else s.TRAN_ATR_TRAIL_MULT
+    sma100 = float(current.get("sma100", 0) or 0)
+    short_ok = "允许" if last_price <= sma100 else "禁止"
+else:
+    current = None
+    last_price = entry_price
+    regime = entry_regime or "?"
+    atr_mult = 0
+    sma100 = 0
+    short_ok = "?"
 
 print("=" * 55)
 print(f"  PAPER TRADING — ${equity:.2f} (start: ${INITIAL_CAPITAL:.0f})")
-print(f"  {str(new_bars.index[-1]) if len(new_bars) > 0 else df.index[-1]}")
+ts = str(new_bars.index[-1])[:16] if len(new_bars) > 0 else str(df.index[-1])[:16] if not df.empty else (state.get("last_processed", "?") if "state" in dir() else "?")
+print(f"  {ts}")
 print("=" * 55)
-print(f"  Price:     ${last_price:,.2f}")
-print(f"  ADX:       {current['adx']:.1f}  |  Regime: {regime} ({atr_mult}x ATR)")
-print(f"  SMA100:    ${sma100:,.0f}  |  Shorts: {short_ok}")
+if data_ok:
+    print(f"  Price:     ${last_price:,.2f}")
+    print(f"  ADX:       {current['adx']:.1f}  |  Regime: {regime} ({atr_mult}x ATR)")
+    print(f"  SMA100:    ${sma100:,.0f}  |  Shorts: {short_ok}")
 print(f"  Return:    {((equity-INITIAL_CAPITAL)/INITIAL_CAPITAL*100):+.1f}%")
 print(f"  Max DD:    {max_dd*100:.1f}%")
 print(f"  Trades:    {trade_count}")
 print()
 
 if pos_side == 1:
-    tmult = s.ATR_TRAIL_MULT if entry_regime == "trend" else s.TRAN_ATR_TRAIL_MULT
     print(f"  [POSITION] LONG ({entry_regime})")
     print(f"    Entry:   ${entry_price:.2f}")
     print(f"    Stop:    ${trail_stop:.2f}")
-    print(f"    PnL:     {((last_price-entry_price)/entry_price*100):+.2f}% (unrealized)")
+    if data_ok:
+        print(f"    PnL:     {((last_price-entry_price)/entry_price*100):+.2f}% (unrealized)")
 elif pos_side == -1:
     print(f"  [POSITION] SHORT ({entry_regime})")
     print(f"    Entry:   ${entry_price:.2f}")
     print(f"    Stop:    ${trail_stop:.2f}")
-    print(f"    PnL:     {((entry_price-last_price)/entry_price*100):+.2f}% (unrealized)")
-else:
+    if data_ok:
+        print(f"    PnL:     {((entry_price-last_price)/entry_price*100):+.2f}% (unrealized)")
+elif data_ok:
     new_long = bool(current["long_sig"]) and not bool(df.iloc[-2]["long_sig"])
     new_short = bool(current["short_sig"]) and not bool(df.iloc[-2]["short_sig"])
     if new_long:
@@ -343,6 +360,8 @@ else:
         print(f"  [SIGNAL] SHORT — enter next bar")
     else:
         print(f"  [FLAT] No signal")
+else:
+    print(f"  [FLAT] No data")
 print()
 
 if recorded_trades:
@@ -355,39 +374,49 @@ if recorded_trades:
 # ── Telegram ──
 print("---TELEGRAM---")
 ret_total = (equity - INITIAL_CAPITAL) / INITIAL_CAPITAL * 100
-ts = str(new_bars.index[-1])[:16] if len(new_bars) > 0 else str(df.index[-1])[:16]
-print(f"💼 纸面交易 | {ts}")
+ts = str(new_bars.index[-1])[:16] if len(new_bars) > 0 else str(df.index[-1])[:16] if not df.empty else (state.get("last_processed", "?") if "state" in dir() else "?")
+print(f"[BAG] 纸面交易 | {ts}")
 if events_this_run:
     for evt in events_this_run:
         print(f"⚡ {evt}")
 if pos_side == 1:
-    upnl = (last_price - entry_price) / entry_price * 100
-    dist_to_stop = (last_price - trail_stop) / last_price * 100
+    if data_ok:
+        upnl = (last_price - entry_price) / entry_price * 100
+        dist_to_stop = (last_price - trail_stop) / last_price * 100
     notional = entry_contracts * last_price
     margin = notional / LEVERAGE if LEVERAGE > 0 else 0
-    print(f"🟢 做多 ({entry_regime})")
+    print(f"[L] 做多 ({entry_regime})")
     print(f"入场价: ${entry_price:.2f} | 当前价: ${last_price:.2f}")
     print(f"仓位: {entry_contracts:.4f} ETH | 名义: ${notional:.0f} | 保证金: ${margin:.1f}")
-    print(f"移动止损: ${trail_stop:.2f} | 距止损: {dist_to_stop:+.1f}%")
-    print(f"浮盈: {upnl:+.2f}%")
-    print(f"━━━━━━━━━━━━")
+    if data_ok:
+        print(f"移动止损: ${trail_stop:.2f} | 距止损: {dist_to_stop:+.1f}%")
+        print(f"浮盈: {upnl:+.2f}%")
+    print(f"---")
     print(f"权益: ${equity:.2f} ({ret_total:+.1f}%) | 最大回撤: {max_dd*100:.1f}%")
-    print(f"已平仓: #{trade_count} 笔 | 杠杆: {LEVERAGE}x | 风险: {RISK_PER_TRADE*100:.0f}%/笔")
+    if data_ok:
+        print(f"已平仓: #{trade_count} 笔 | 杠杆: {LEVERAGE}x | 风险: {RISK_PER_TRADE*100:.0f}%/笔")
+    else:
+        print(f"已平仓: #{trade_count} 笔")
 elif pos_side == -1:
-    upnl = (entry_price - last_price) / entry_price * 100
-    dist_to_stop = (trail_stop - last_price) / last_price * 100
     notional = entry_contracts * last_price
     margin = notional / LEVERAGE if LEVERAGE > 0 else 0
-    print(f"🔴 做空 ({entry_regime})")
+    if data_ok:
+        upnl = (entry_price - last_price) / entry_price * 100
+        dist_to_stop = (trail_stop - last_price) / last_price * 100
+    print(f"[S] 做空 ({entry_regime})")
     print(f"入场价: ${entry_price:.2f} | 当前价: ${last_price:.2f}")
     print(f"仓位: {entry_contracts:.4f} ETH | 名义: ${notional:.0f} | 保证金: ${margin:.1f}")
-    print(f"移动止损: ${trail_stop:.2f} | 距止损: {dist_to_stop:+.1f}%")
-    print(f"浮盈: {upnl:+.2f}%")
-    print(f"━━━━━━━━━━━━")
+    if data_ok:
+        print(f"移动止损: ${trail_stop:.2f} | 距止损: {dist_to_stop:+.1f}%")
+        print(f"浮盈: {upnl:+.2f}%")
+    print(f"---")
     print(f"权益: ${equity:.2f} ({ret_total:+.1f}%) | 最大回撤: {max_dd*100:.1f}%")
-    print(f"已平仓: #{trade_count} 笔 | 杠杆: {LEVERAGE}x | 风险: {RISK_PER_TRADE*100:.0f}%/笔")
+    if data_ok:
+        print(f"已平仓: #{trade_count} 笔 | 杠杆: {LEVERAGE}x | 风险: {RISK_PER_TRADE*100:.0f}%/笔")
+    else:
+        print(f"已平仓: #{trade_count} 笔")
 else:
-    print(f"⚪ 空仓等待")
-    print(f"━━━━━━━━━━━━")
+    print(f"[-] 空仓等待")
+    print(f"---")
     print(f"权益: ${equity:.2f} ({ret_total:+.1f}%) | 最大回撤: {max_dd*100:.1f}%")
     print(f"已平仓: #{trade_count} 笔")
