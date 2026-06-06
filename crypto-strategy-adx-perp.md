@@ -115,10 +115,10 @@ ATR 已百分比化（ATR/close*100），跨价格等级可比。
 - [x] Walk-Forward 验证
 - [ ] ETH $100 实盘测试
 - [x] 纸面交易 $100 (2026-05-31 上线, GitHub Actions 每 4h 推送 Telegram)
-- [ ] 2019-2022 熊市数据回填
+- [x] 2019-2022 熊市数据回填
 
 ## 相关笔记
 
 - `backtests/adx_adaptive_perp_eth_4h.py`
 - `backtests/adx_adaptive_perp_eth_1h4h.py` (MTF variant)
-- `lessons-crypto.md`
+- `lessons-crypto.md` (已清空，论证阶段 20 条 → [[记忆/场景/量化经验-论证阶段总结-2026-06-06]])
