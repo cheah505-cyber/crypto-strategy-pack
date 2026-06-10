@@ -8,9 +8,9 @@
   "entry_time": "2026-06-09 12:00:00",
   "entry_regime": "trend",
   "entry_contracts": 0.1135939946621931,
-  "trail_stop": 1742.6570283012925,
+  "trail_stop": 1718.4464745546427,
   "consec_losses": 0,
   "cooldown_until": -1,
   "trade_count": 3,
-  "last_processed": "2026-06-09 20:00:00"
+  "last_processed": "2026-06-10 00:00:00"
 }
