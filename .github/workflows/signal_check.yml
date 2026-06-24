@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: '0 */4 * * *'
   workflow_dispatch:
+concurrency:
+  group: signal-check
+  cancel-in-progress: false
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -17,8 +20,8 @@ jobs:
           python-version: '3.12'
       - run: pip install pandas numpy ccxt
       - run: python tools/fetch_latest.py
-      - run: python tools/manual_signal.py > signal_output.txt
       - run: python tools/paper_trade.py > paper_output.txt
+      - run: python tools/manual_signal.py > signal_output.txt
       - name: Commit paper trade state
         if: always()
         run: |
