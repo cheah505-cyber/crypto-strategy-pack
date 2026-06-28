@@ -1,11 +1,12 @@
+# Python
 __pycache__/
-.ruff_cache/
 *.pyc
-.env
-*.db
-data/
-results/
-/paper_trade/trades.csv
-!/paper_trade/equity.csv
-.codegraph/
+
+# OS
 .DS_Store
+
+# Data
+data/*_full.csv
+
+# Results
+loop/results/
