@@ -15,7 +15,7 @@ Read a note from the Obsidian vault using `read_file`.
 
 ## Steps
 
-1. 确定笔记全路径 `~/Obsidian/{note_path}.md`
-2. 调用 `read_file(path="~/Obsidian/{note_path}.md", offset={offset}, limit={limit})`
+1. 确定笔记全路径 `~/Obsidian-Vault/{note_path}.md`
+2. 调用 `read_file(path="~/Obsidian-Vault/{note_path}.md", offset={offset}, limit={limit})`
 3. 返回笔记内容
-4. 如果文件不存在，搜索 `~/Obsidian/` 下的相似文件名
+4. 如果文件不存在，搜索 `~/Obsidian-Vault/` 下的相似文件名

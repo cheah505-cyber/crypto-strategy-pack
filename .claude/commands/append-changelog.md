@@ -25,7 +25,7 @@ Append a new entry to the project's changelog in the Obsidian vault.
 
 ## Steps
 
-1. 读取当前 changelog：`read_file(path="~/Obsidian/Projects/{project}.changelog.md")`
+1. 读取当前 changelog：`read_file(path="~/Obsidian-Vault/Projects/{project}.changelog.md")`
 2. 在文件末尾追加一行：`YYYY-MM-DD | {entry} | <标签>`
 3. 写入更新后的 changelog
 

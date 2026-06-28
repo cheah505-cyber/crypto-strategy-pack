@@ -16,8 +16,8 @@ Search the Obsidian vault for notes matching a keyword or pattern.
 
 ## Steps
 
-1. 用 `search_files` 搜索 `~/Obsidian/` 下的笔记
-2. 对于 JSONL 索引搜索（秒搜历史），用 `grep "{query}" ~/Obsidian/Will/L0-原始/sessions_index.jsonl`
+1. 用 `search_files` 搜索 `~/Obsidian-Vault/` 下的笔记
+2. 对于 JSONL 索引搜索（秒搜历史），用 `grep "{query}" ~/Obsidian-Vault/Will/L0-原始/sessions_index.jsonl`
 3. 返回匹配的文件列表和/或内容片段
 
 ## Examples

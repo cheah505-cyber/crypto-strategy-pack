@@ -18,13 +18,13 @@ Append a Phase summary to today's session file and update the JSONL index.
 
 ### Part A: 追加 session 日志
 
-1. 检查 session 文件是否存在：`~/Obsidian/Will/L0-原始/session-{date}.md`
+1. 检查 session 文件是否存在：`~/Obsidian-Vault/Will/L0-原始/session-{date}.md`
 2. 如果不存在，创建文件头 `# {date} Session\n\n`
 3. 在文件末尾追加 Phase 摘要内容（`## {phase}\n\n{summary}\n\n`）
 
 ### Part B: 更新 JSONL 索引
 
-4. 追加一行到 `~/Obsidian/Will/L0-原始/sessions_index.jsonl`
+4. 追加一行到 `~/Obsidian-Vault/Will/L0-原始/sessions_index.jsonl`
    ```json
    {"date":"YYYY-MM-DD","phase":<编号>,"tags":["tag1","tag2"],"summary":"<一行摘要>"}
    ```
