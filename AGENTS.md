@@ -1,0 +1,40 @@
+# crypto-strategy-pack Agent 入口
+
+> **唯一事实源：** 本仓库及 GitHub `cheah505-cyber/crypto-strategy-pack`。任何外部笔记均非运行或接管依赖。
+
+## 必读顺序
+
+1. `INDEX.md` — 架构、流程和文件地图。
+2. `STRATEGY.md` — 当前策略逻辑与限制。
+3. `PARAMETERS.md` — 参数事实源。
+4. `VALIDATION.md` — 验证门禁。
+5. `DISCIPLINE.md` — 交易与风控铁律。
+6. `DECISIONS.md` — 设计决策、已知缺陷和上线条件。
+7. `CHANGELOG.md` — 操作与故障记录。
+
+## 当前状态
+
+- 纸面交易的唯一实时状态：`paper_trade/state.json`。
+- 成交记录：`paper_trade/trades.csv`；权益曲线：`paper_trade/equity.csv`。
+- 自动任务：`.github/workflows/signal_check.yml`，每 4 小时及手动触发。
+- 文档中的权益、交易数或回撤只作历史快照；冲突时以上述状态文件为准。
+
+## 不可违反
+
+- 修改前执行 `git fetch origin --prune`，检查分支、工作区和 `master...origin/master`。
+- 不自动覆盖未提交改动；不直接 push，除非用户明确批准。
+- 不改策略参数，除非有独立样本外、敏感性和 walk-forward 验证。
+- 不使用未来数据；所有回测必须通过 preflight 与 sanity。
+- 费用、滑点和资金费率从 `utils/constants.py` 引用，不在策略中手写。
+- paper trade 不等于实盘；实盘条件见 `DECISIONS.md`。
+- 密钥只通过 GitHub Secrets 或环境变量提供，不写入仓库和回复。
+- 结果、决策、故障和教训必须写回本仓库，不依赖外部知识库。
+
+## 最小验证
+
+```powershell
+python -m unittest tests.test_project_self_contained -v
+python backtests/adx_adaptive_perp_eth_4h.py
+```
+
+第二条为完整策略检查，运行时间较长；文档或 CI 入口变更至少执行第一条。

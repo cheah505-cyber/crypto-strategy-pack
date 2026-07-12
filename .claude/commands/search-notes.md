@@ -1,11 +1,11 @@
-# Search Obsidian Vault
+# Search Project Knowledge
 
-Search the Obsidian vault for notes matching a keyword or pattern.
+Search this repository for knowledge matching a keyword or pattern.
 
 ## References
 
-- `vault-helper.md` — vault 路径和结构
-- `AGENTS.md` — 完整 vault 规范
+- `AGENTS.md` — 项目入口与安全边界
+- `INDEX.md` — 知识文件地图
 
 ## Parameters
 
@@ -16,8 +16,8 @@ Search the Obsidian vault for notes matching a keyword or pattern.
 
 ## Steps
 
-1. 用 `search_files` 搜索 `~/Obsidian/` 下的笔记
-2. 对于 JSONL 索引搜索（秒搜历史），用 `grep "{query}" ~/Obsidian/Will/L0-原始/sessions_index.jsonl`
+1. 用 `rg "{query}" . --glob '*.md'` 搜索仓库 Markdown。
+2. 查历史 session 时搜索 `docs/sessions/`；查实验时搜索 `FINDINGS.md` 和 `loop/`。
 3. 返回匹配的文件列表和/或内容片段
 
 ## Examples

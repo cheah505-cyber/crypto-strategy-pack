@@ -36,8 +36,11 @@ crypto-strategy-pack/
 # 1. 复制 code/ 到新电脑
 cp -r code/ ~/projects/crypto
 
-# 2. 安装依赖
-pip install pandas numpy ccxt scikit-learn
+# 2. 安装运行依赖
+pip install -r requirements.txt
+
+# 研究脚本需要时再安装
+pip install -r requirements-research.txt
 
 # 3. 拉取数据（如果需要）
 cd ~/projects/crypto
@@ -58,4 +61,5 @@ python backtests/adx_adaptive_perp_eth_4h.py
 - **类型**: 趋势跟踪（Donchian 突破 + ADX 体制切换）
 - **回测期**: 2019-01 → 2026-05
 - **全周期指标**: Sharpe 1.30, 收益 +1,649%, DD -38.2%, 0 爆仓
-- **当前状态**: 纸面交易运行中（GitHub Actions 每 4h），已实盘模拟 3 笔盈利
+- **当前状态**: 纸面交易运行中（GitHub Actions 每 4h）；实时权益、仓位、回撤和交易数以 `paper_trade/state.json` 与 CSV 台账为准
+- **Agent 接管**: 先读 `AGENTS.md` 与 `INDEX.md`

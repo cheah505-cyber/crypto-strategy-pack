@@ -63,5 +63,5 @@
 - [ ] 全部 Phase 门禁通过
 - [ ] git commit 存档（每 Phase 至少一次）
 - [ ] findings.md 追加
-- [ ] Obsidian L2 写入
+- [ ] 仓库 `FINDINGS.md` / `DECISIONS.md` 写入并随 GitHub 同步
 - [ ] `lessons-crypto.md` 追加经验

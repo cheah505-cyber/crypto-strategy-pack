@@ -3,7 +3,7 @@
 ## 总览
 
 ```
-Python 回测引擎（自建）→ Crypto 项目（因子研发+验证+决策）→ Obsidian（知识沉淀）
+Python 回测引擎（自建）→ Crypto 项目（因子研发+验证+决策+知识沉淀）
                                     ↓
                      GitHub Actions（每 4h 信号+纸面交易）→ Telegram 通知
 ```

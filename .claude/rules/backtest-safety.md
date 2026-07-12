@@ -143,7 +143,8 @@
 
 ## Memory 归档
 
-auto-memory 是工作缓冲区，不是永久存储。长期知识的终点是 Obsidian vault。
+auto-memory 是工作缓冲区，不是永久存储。长期知识必须进入本仓库并随 GitHub 同步。
 
-- **`lessons-crypto.md`**：上限 20 条。触及上限时，将已稳定（≥3 次被引用的）条目提升到 Obsidian `记忆/场景/` 或 `记忆/综合/`，从 memory 中移除。
-- **`loop/findings.md`**：每个策略 / 每条验证链完成后，将完整发现记录归档到 Obsidian `记忆/场景/`（L2），清空 `findings.md` 只保留最近 50 行摘要。
+- **`lessons-crypto.md`**：上限 20 条。触及上限时，将稳定条目归档到 `docs/knowledge/lessons-archive-YYYY.md`。
+- **`loop/findings.md`**：每条验证链完成后，将完整发现归档到 `loop/archive/YYYY-MM-DD-<topic>/`，当前文件只保留最近摘要。
+- **`DECISIONS.md` / `CHANGELOG.md`**：分别记录长期决策和操作故障历史。

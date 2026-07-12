@@ -1,21 +1,21 @@
-# Read Obsidian Note
+# Read Project Knowledge
 
-Read a note from the Obsidian vault using `read_file`.
+Read a knowledge file from this repository using `read_file`.
 
 ## References
 
-- `vault-helper.md` — vault 路径和结构
-- `AGENTS.md` — 完整 vault 规范
+- `AGENTS.md` — 项目入口与必读顺序
+- `INDEX.md` — 知识文件地图
 
 ## Parameters
 
-- `note_path`: 笔记的相对路径（如 `Projects/crypto-strategy-pack` 或 `Will/L0-原始/session-2026-06-15`）
+- `note_path`: 仓库内相对路径（如 `DECISIONS.md` 或 `docs/sessions/session-2026-06-15.md`）
 - `offset` (可选): 起始行号（默认 1）
 - `limit` (可选): 最大行数（默认 500）
 
 ## Steps
 
-1. 确定笔记全路径 `~/Obsidian/{note_path}.md`
-2. 调用 `read_file(path="~/Obsidian/{note_path}.md", offset={offset}, limit={limit})`
+1. 将路径限制在仓库根目录内，禁止 `..` 逃逸。
+2. 调用 `read_file(path="{repo_root}/{note_path}", offset={offset}, limit={limit})`
 3. 返回笔记内容
-4. 如果文件不存在，搜索 `~/Obsidian/` 下的相似文件名
+4. 如果文件不存在，用 `rg --files` 搜索仓库内相似文件名

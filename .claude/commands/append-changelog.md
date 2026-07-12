@@ -1,11 +1,11 @@
 # Append Project Changelog
 
-Append a new entry to the project's changelog in the Obsidian vault.
+Append a new entry to the repository `CHANGELOG.md`.
 
 ## References
 
-- `vault-helper.md` — vault 路径和 changelog 规范
-- `AGENTS.md` — 完整 vault 规范
+- `AGENTS.md` — 项目写入规则
+- `CHANGELOG.md` — 当前操作与故障记录
 
 ## Format
 
@@ -20,14 +20,13 @@ Append a new entry to the project's changelog in the Obsidian vault.
 
 ## Parameters
 
-- `project`: 项目名（默认为 `crypto-strategy-pack`）
 - `entry`: changelog 条目文本
 
 ## Steps
 
-1. 读取当前 changelog：`read_file(path="~/Obsidian/Projects/{project}.changelog.md")`
+1. 读取仓库根目录 `CHANGELOG.md`
 2. 在文件末尾追加一行：`YYYY-MM-DD | {entry} | <标签>`
-3. 写入更新后的 changelog
+3. 写入后运行 `git diff --check`
 
 ## Example
 

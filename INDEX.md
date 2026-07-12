@@ -1,5 +1,7 @@
 # Crypto 量化交易
 
+> **Agent 唯一接管入口。** 本仓库与 GitHub 是唯一事实源，不依赖外部知识库。先读 `AGENTS.md`，实时状态以 `paper_trade/state.json` 为准。
+
 **策略:** ETH 4H ADX 自适应永续（Donchian 突破 + ADX 体制切换 + ATR% 止损）
 **标的:** ETH/USDT 永续 (Binance)
 **环境:** `~/.will/venvs/tools/bin/python`
@@ -8,7 +10,7 @@
 ## 架构
 
 ```
-Python 回测引擎 (自建)  →  Crypto 项目 (因子研发+验证+决策)  →  Obsidian (知识沉淀)
+Python 回测引擎 (自建)  →  Crypto 项目 (因子研发+验证+决策+知识沉淀)
                                    ↓
                     GitHub Actions (每 4h 信号+纸面交易)  →  Telegram 通知
 ```
@@ -47,7 +49,8 @@ paper_trade/   ← 纸面交易状态（state.json, trades.csv, equity.csv）
 
 **GitHub Actions** `.github/workflows/signal_check.yml`：
 - 触发：每 4h + 手动 `workflow_dispatch`
-- 流程：`fetch_latest.py` → `manual_signal.py` → `paper_trade.py` → Telegram → 状态回写 git
+- 流程：`fetch_latest.py` → `paper_trade.py` → `manual_signal.py` → 状态回写 git → Telegram
+- 防重复：workflow `concurrency` 禁止定时与手动任务重叠
 - 交易所 fallback：OKX → KuCoin → Bybit → Binance
 
 ## 回测安全规则
@@ -174,7 +177,9 @@ Cohen's d（均值）：< 0.2 可忽略，0.2-0.5 小，0.5-0.8 中，> 0.8 大�
 |------|------|
 | `crypto-strategy-adx-perp.md` | 关键指标、验证状态、已知限制 |
 | `loop/findings.md` | 追加发现条目 |
-| `lessons-crypto.md` | 新教训（上限 20 条→归档到 Obsidian） |
+| `lessons-crypto.md` | 新教训；满 20 条后在仓库内按年份归档 |
+| `DECISIONS.md` | 设计决策、已知缺陷、暂停和实盘条件 |
+| `CHANGELOG.md` | 操作、部署、故障和修复记录 |
 
 ## 参考
 
@@ -184,20 +189,14 @@ Cohen's d（均值）：< 0.2 可忽略，0.2-0.5 小，0.5-0.8 中，> 0.8 大�
 | `crypto-strategy-adx-perp.md` | 主力策略状态与指标 |
 | `loop/tasks.json` | 待办任务队列 |
 
-## Obsidian Vault
+## Agent 接管与知识沉淀
 
-- **路径:** `C:\Users\cheah\Obsidian\`
-- **全局索引:** `C:\Users\cheah\Obsidian\INDEX.md` — vault 完整规则
-- **项目笔记:** `Projects/crypto-strategy-pack.md`
-- **架构参考:** `Will/L2-场景/crypto-strategy-pack.md`
-- **Session 日志:** `Will/L0-原始/session-*.md`
+- 入口与铁律：`AGENTS.md`
+- 项目索引：`INDEX.md`
+- 决策与上线条件：`DECISIONS.md`
+- 操作和故障历史：`CHANGELOG.md`
+- 经验教训：`LESSONS.md`、`lessons-crypto.md`
+- 实验发现：`FINDINGS.md`、`loop/findings.md`
+- 待办：`loop/tasks.json`
 
-### 常用操作
-
-| 操作 | 方式 |
-|------|------|
-| 搜索 vault | `rg "关键词" C:\Users\cheah\Obsidian\ --glob '*.md'` |
-| 读项目笔记 | 直接打开 `Projects/crypto-strategy-pack.md` |
-| 追加 changelog | `Projects/crypto-strategy-pack.changelog.md` |
-| 写 Phase 摘要 | 追加到 `Will/L0-原始/session-YYYY-MM-DD.md`，同时追加 JSONL 索引 |
-| 交叉引用 | 写新笔记后检查 `Will/_index.md` 补充回链 |
+所有长期事实和决策必须保存在仓库并随 GitHub 同步。

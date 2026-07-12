@@ -14,7 +14,7 @@ Input CSV Format (wide):
     2024-01-02,0.03,0.01,-0.01,0.02
 
 Output:
-    JSON 权重配置文件 + 可选写入 Obsidian
+    JSON 权重配置文件；长期结论写入仓库 FINDINGS.md / DECISIONS.md
 """
 
 from __future__ import annotations
