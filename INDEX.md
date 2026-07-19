@@ -193,10 +193,11 @@ Cohen's d（均值）：< 0.2 可忽略，0.2-0.5 小，0.5-0.8 中，> 0.8 大�
 
 - 入口与铁律：`AGENTS.md`
 - 项目索引：`INDEX.md`
+- 项目专属记忆：`项目摘要.md`（状态、Tag 路由、目标/方案/结果/痛点回溯、下一步；不是实时交易状态）
 - 决策与上线条件：`DECISIONS.md`
 - 操作和故障历史：`CHANGELOG.md`
 - 经验教训：`LESSONS.md`、`lessons-crypto.md`
 - 实验发现：`FINDINGS.md`、`loop/findings.md`
 - 待办：`loop/tasks.json`
 
-所有长期事实和决策必须保存在仓库并随 GitHub 同步。
+可复用结论和接管状态写入 `项目摘要.md`；详细决策、发现、教训和操作历史继续保存在上述专属文件中。所有长期事实和决策必须保存在仓库并随 GitHub 同步。
