@@ -1,8 +1,10 @@
 """Diagnose 2020-2021 underperformance."""
 import sys, io
+from pathlib import Path
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.path.insert(0, 'C:/Users/cheah/projects/crypto/utils')
-sys.path.insert(0, 'C:/Users/cheah/projects/crypto')
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "utils"))
 
 from backtests import adx_adaptive_perp_eth_4h as s
 import numpy as np, pandas as pd
@@ -12,7 +14,7 @@ s.RISK_PER_TRADE = 0.10
 s.ATR_TRAIL_MULT = 2.5
 s.TRAN_ATR_TRAIL_MULT = 0.8
 
-df = pd.read_csv("C:/Users/cheah/projects/crypto/data/eth_usdt_4h_full.csv",
+df = pd.read_csv(ROOT / "data" / "eth_usdt_4h.csv",
                  parse_dates=["timestamp"], index_col="timestamp")
 if df.index.tz is not None:
     df.index = df.index.tz_localize(None)

@@ -40,11 +40,11 @@
 
 ```
 crypto/
-├── CLAUDE.md
+├── AGENTS.md
 ├── data/            ← 市场数据
 ├── strategies/      ← 策略代码
 ├── loop/
-│   ├── backtest-loop.sh   ← 本循环脚本
+│   ├── README.md          ← Windows Agent 执行入口
 │   ├── prompt.md          ← 本文件
 │   ├── tasks.json         ← 任务队列
 │   ├── progress.json      ← 进度追踪
@@ -60,4 +60,4 @@ crypto/
 
 ## 本轮任务
 
-（由循环脚本在运行时注入，见下方「当前任务」部分）
+（由执行本轮任务的 Agent 从 `tasks.json` 选择并写入，见下方「当前任务」部分）
