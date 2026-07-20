@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ProjectSelfContainedTest(unittest.TestCase):
     def test_required_handoff_files_exist(self):
-        for name in ("AGENTS.md", "INDEX.md", "CHANGELOG.md", "DECISIONS.md", "requirements.txt"):
+        for name in ("AGENTS.md", "INDEX.md", "TOOLS.md", "CHANGELOG.md", "DECISIONS.md", "requirements.txt"):
             self.assertTrue((ROOT / name).is_file(), name)
 
     def test_authoritative_docs_do_not_require_obsidian(self):
@@ -28,10 +28,24 @@ class ProjectSelfContainedTest(unittest.TestCase):
         self.assertIn("DECISIONS.md", text)
         self.assertIn("CHANGELOG.md", text)
 
+    def test_no_vendor_specific_agent_runtime_is_required(self):
+        self.assertFalse((ROOT / ".claude").exists())
+        self.assertFalse((ROOT / ".mcp.json").exists())
+        text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("不要求 Serena", text)
+
+    def test_authoritative_paths_resolve_from_repository_root(self):
+        for name in ("README.md", "STRATEGY.md", "FACTORS.md", "PARAMETERS.md", "ARCHITECTURE.md"):
+            text = (ROOT / name).read_text(encoding="utf-8")
+            self.assertNotIn("code/", text, name)
+        architecture = (ROOT / "ARCHITECTURE.md").read_text(encoding="utf-8")
+        self.assertIn("tools/ohlcv_quality_checker.py", architecture)
+        self.assertNotIn("tools/data_quality_check.py", architecture)
+
     def test_operational_files_do_not_reference_obsidian(self):
         excluded = {
             Path("tests/test_project_self_contained.py"),
-            Path("docs/superpowers/plans/2026-07-12-remove-obsidian-dependency.md"),
+            Path("docs/archive/plans/2026-07-12-remove-obsidian-dependency.md"),
         }
         for path in ROOT.rglob("*"):
             if not path.is_file() or ".git" in path.parts:

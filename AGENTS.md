@@ -5,13 +5,14 @@
 ## 必读顺序
 
 1. `INDEX.md` — 架构、流程和文件地图。
-2. `项目摘要.md` — 项目专属记忆；按状态栏、Tag 路由、最新回溯、下次优先接管。
-3. `STRATEGY.md` — 当前策略逻辑与限制。
-4. `PARAMETERS.md` — 参数事实源。
-5. `VALIDATION.md` — 验证门禁。
-6. `DISCIPLINE.md` — 交易与风控铁律。
-7. `DECISIONS.md` — 设计决策、已知缺陷和上线条件。
-8. `CHANGELOG.md` — 操作与故障记录。
+2. `TOOLS.md` — Windows 命令、依赖、网络访问和副作用边界。
+3. `项目摘要.md` — 项目专属记忆；按状态栏、Tag 路由、最新回溯、下次优先接管。
+4. `STRATEGY.md` — 当前策略逻辑与限制。
+5. `PARAMETERS.md` — 参数事实源。
+6. `VALIDATION.md` — 验证门禁。
+7. `DISCIPLINE.md` — 交易与风控铁律。
+8. `DECISIONS.md` — 设计决策、已知缺陷和上线条件。
+9. `CHANGELOG.md` — 操作与故障记录。
 
 ## 当前状态
 
@@ -24,6 +25,7 @@
 
 - 修改前执行 `git fetch origin --prune`，检查分支、工作区和 `master...origin/master`。
 - 不自动覆盖未提交改动；不直接 push，除非用户明确批准。
+- 本项目不要求 Serena、MCP、Claude/Codex 插件或外部知识库；Agent 使用自身可用能力完成同等操作。
 - 不改策略参数，除非有独立样本外、敏感性和 walk-forward 验证。
 - 不使用未来数据；所有回测必须通过 preflight 与 sanity。
 - 费用、滑点和资金费率从 `utils/constants.py` 引用，不在策略中手写。

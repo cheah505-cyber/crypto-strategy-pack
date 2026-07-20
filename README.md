@@ -1,6 +1,6 @@
-# Crypto 量化交易策略备份包
+# Crypto 量化交易策略
 
-> 自包含的 crypto 量化交易完整备份。任何 AI agent 拿到此目录即可理解全部策略逻辑并执行回测。
+> 自包含的 Windows 项目。任何 Agent 从仓库根目录即可理解策略、运行验证并接管纸面交易状态；不依赖指定插件或 MCP。
 
 ## 目录结构
 
@@ -15,15 +15,14 @@ crypto-strategy-pack/
 ├── LESSONS.md              ← 经验教训（论证阶段总结 + 实盘阶段）
 ├── ARCHITECTURE.md         ← 整体架构：数据→回测→信号→交易→CI
 ├── FINDINGS.md             ← 回测发现结论汇总
-└── code/                   ← 完整 crypto 项目（独立 git repo）
-    ├── backtests/          ← 回测脚本
-    ├── tools/              ← 数据拉取、信号、工具脚本
-    ├── strategies/         ← 因子/策略模块
-    ├── utils/              ← 常量、工具函数
-    ├── data/               ← 市场数据 CSV
-    ├── paper_trade/        ← 纸面交易状态
-    ├── loop/               ← 回测循环任务
-    └── .github/workflows/  ← CI/CD 配置
+├── backtests/              ← 回测脚本
+├── tools/                  ← 数据拉取、信号和验证工具
+├── strategies/             ← 因子/策略模块
+├── utils/                  ← 常量与共享工具
+├── data/                   ← 市场数据 CSV
+├── paper_trade/            ← 纸面交易状态
+├── loop/                   ← Agent 回测任务队列
+└── .github/workflows/      ← GitHub Actions 自动纸面交易
 ```
 
 ## 使用方式
@@ -59,7 +58,7 @@ python -m venv .venv
 - **标的**: ETH/USDT 永续合约 (Binance)
 - **时框**: 4h
 - **类型**: 趋势跟踪（Donchian 突破 + ADX 体制切换）
-- **回测期**: 2019-01 → 2026-05
-- **全周期指标**: Sharpe 1.30, 收益 +1,649%, DD -38.2%, 0 爆仓
+- **当前 4H 数据**: 从 2023-01 开始，末端由 CI 持续追加
+- **历史全周期冻结结果**: 2019-01 → 2026-05；Sharpe 1.30、收益 +1,649%、DD -38.2%、0 爆仓
 - **当前状态**: 纸面交易运行中（GitHub Actions 每 4h）；实时权益、仓位、回撤和交易数以 `paper_trade/state.json` 与 CSV 台账为准
 - **Agent 接管**: 先读 `AGENTS.md` 与 `INDEX.md`

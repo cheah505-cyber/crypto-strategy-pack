@@ -29,10 +29,10 @@ CCXT (Binance)
     ↓
 tools/fetch_ohlcv.py → data/XXX_usdt_4h.csv (CSV)
     ↓
-tools/data_quality_check.py (DQS ≥ 85 门禁)
+tools/ohlcv_quality_checker.py (DQS ≥ 85 门禁)
 ```
 
-支持交易所 fallback：Binance → OKX → KuCoin → Bybit
+自动增量更新的交易所 fallback：OKX → KuCoin → Bybit → Binance。
 
 ### 3. 信号管线
 
@@ -58,7 +58,7 @@ tools/send_telegram.sh      → Telegram 推送通知
 `.github/workflows/signal_check.yml`：
 
 - 触发：每 4h（cron `0 */4 * * *`）+ 手动 workflow_dispatch
-- 步骤：fetch → signal → paper_trade → git commit → Telegram
+- 步骤：fetch → paper_trade → signal → git commit → Telegram
 - 环境：ubuntu-latest, Python 3.12
 - 依赖：pandas, numpy, ccxt
 

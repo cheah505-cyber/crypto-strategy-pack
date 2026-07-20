@@ -31,7 +31,7 @@ strategies/    ← 可复用的因子/策略模块
 data/          ← 市场数据 CSV
 loop/          ← 回测循环：tasks.json、findings.md、results/
 paper_trade/   ← 纸面交易状态（state.json, trades.csv, equity.csv）
-.claude/rules/ ← Claude Code 规则（以下策略规则与 .claude/rules/ 同步）
+docs/archive/  ← 已完成的历史实施方案，不定义现行工具要求
 ```
 
 ## 费用常量

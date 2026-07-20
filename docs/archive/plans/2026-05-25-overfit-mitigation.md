@@ -1,6 +1,6 @@
 # ADX Adaptive Overfitting Mitigation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **历史归档：** 本方案已完成，仅用于追溯，不要求安装或调用任何 Skill、插件或 MCP。
 
 **Goal:** Diagnose and mitigate the three highest-risk overfitting signals (bear market absence, timeframe exclusivity, coin exclusivity) and quantify two medium-risk signals (Walk-Forward fragility, OOS Sharpe decay).
 

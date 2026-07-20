@@ -1,6 +1,6 @@
 # Crypto Self-Contained Handoff Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **历史归档：** 本方案已完成，仅用于追溯，不要求安装或调用任何 Skill、插件或 MCP。
 
 **Goal:** 让 crypto-strategy-pack 在没有 Obsidian 的情况下具备完整 Agent 接管、运行、知识沉淀和故障追溯能力。
 

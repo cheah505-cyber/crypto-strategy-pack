@@ -2,6 +2,8 @@
 
 所有命令从 `C:\Users\cheah\Projects\crypto-strategy-pack` 运行。日常入口使用 `.\.venv\Scripts\python.exe`；研究依赖按需安装 `requirements-research.txt`。
 
+项目不要求 Serena、MCP、Claude/Codex 插件或浏览器工具。`.github\workflows\signal_check.yml` 使用 GitHub 托管的 Linux runner，属于远端自动化，不是 Windows 本机依赖。
+
 ## 日常与验收
 
 | 目的 | 命令 | 副作用 |
@@ -31,3 +33,7 @@
 ## 回测任务队列
 
 `loop\README.md` 定义 Windows Agent 的人工循环；`tasks.json`、`progress.json` 和 `findings.md` 是状态文件。项目不再保留 Ubuntu Bash 自动循环。
+
+## GitHub 同步
+
+自动任务会持续提交行情和纸面状态。修改前先运行 `git fetch origin --prune` 与 `git status -sb`；有双向提交时先合并远端状态。除非用户明确批准，不直接推送或修改 Actions Secrets。

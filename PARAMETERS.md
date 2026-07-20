@@ -2,7 +2,7 @@
 
 ## 费用常量
 
-> 来源：`code/utils/constants.py`
+> 来源：`utils/constants.py`
 
 ### 交易所级别（Binance VIP 0，适用所有 USDT-M 永续）
 
