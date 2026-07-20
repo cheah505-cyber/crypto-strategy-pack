@@ -202,12 +202,12 @@ for z in [1.5, 2.0, 2.5]:
         continue
     final = INITIAL_CAPITAL * (1 + r["total_return"] / 100)
     sigs = (df_sig["long_sig"] | df_sig["short_sig"]).sum()
-    print(f"\n  z={z:.1f}  Final: \${final:>8,.0f}  Ret {r['total_return']:>+7.1f}%  "
+    print(f"\n  z={z:.1f}  Final: ${final:>8,.0f}  Ret {r['total_return']:>+7.1f}%  "
           f"Sharpe {r['sharpe_ratio']:.3f}  DD {r['max_drawdown']:.1f}%  "
           f"Trades {r['num_trades']}  Win {r['win_rate']}%  PF {r['profit_factor']}  "
           f"Signals {sigs}")
 
 print()
 print(f"  4h 基线对比:")
-print(f"  Final: \$169,517  Ret +1,595%  Sharpe 1.288  DD 38.5%")
+print("  Final: $169,517  Ret +1,595%  Sharpe 1.288  DD 38.5%")
 print()
