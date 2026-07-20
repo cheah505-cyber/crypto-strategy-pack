@@ -4,7 +4,7 @@
 
 **策略:** ETH 4H ADX 自适应永续（Donchian 突破 + ADX 体制切换 + ATR% 止损）
 **标的:** ETH/USDT 永续 (Binance)
-**环境:** `~/.will/venvs/tools/bin/python`
+**环境:** Windows 项目虚拟环境 `.\.venv\Scripts\python.exe`
 **CI:** GitHub Actions 每 4h（`0 */4 * * *`）→ Telegram 通知
 
 ## 架构

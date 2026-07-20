@@ -36,8 +36,8 @@
 ## 最小验证
 
 ```bash
-python3 -m unittest tests.test_project_self_contained -v
-python3 backtests/adx_adaptive_perp_eth_4h.py
+.\.venv\Scripts\python.exe -m unittest tests.test_project_self_contained -v
+.\.venv\Scripts\python.exe backtests\adx_adaptive_perp_eth_4h.py
 ```
 
 第二条为完整策略检查，运行时间较长；文档或 CI 入口变更至少执行第一条。

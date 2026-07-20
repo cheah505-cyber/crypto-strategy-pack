@@ -32,24 +32,24 @@ crypto-strategy-pack/
 
 ### 恢复运行
 
-```bash
-# 1. 复制 code/ 到新电脑
-cp -r code/ ~/projects/crypto
+```powershell
+# 1. 在 Windows PowerShell 中进入项目
+Set-Location C:\Users\cheah\Projects\crypto-strategy-pack
 
-# 2. 安装运行依赖
-pip install -r requirements.txt
+# 2. 创建项目虚拟环境并安装运行依赖
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 
-# 研究脚本需要时再安装
-pip install -r requirements-research.txt
+# 研究脚本需要时再安装（可选，依赖较大）
+.\.venv\Scripts\python.exe -m pip install -r requirements-research.txt
 
 # 3. 拉取数据（如果需要）
-cd ~/projects/crypto
-python tools/fetch_ohlcv.py --symbol ETH/USDT --timeframe 4h
+.\.venv\Scripts\python.exe tools\fetch_ohlcv.py --symbol ETH/USDT --timeframe 4h
 
 # 4. 跑回测
-python backtests/adx_adaptive_perp_eth_4h.py
+.\.venv\Scripts\python.exe backtests\adx_adaptive_perp_eth_4h.py
 
-# 5. 部署 CI（需要新建 GitHub 仓库 + 设置 secrets）
+# 5. 部署 CI 时设置 GitHub Secrets
 # 见 ARCHITECTURE.md 的 CI/CD 章节
 ```
 
