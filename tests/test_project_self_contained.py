@@ -1,4 +1,6 @@
 import unittest
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -7,8 +9,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ProjectSelfContainedTest(unittest.TestCase):
     def test_required_handoff_files_exist(self):
-        for name in ("AGENTS.md", "INDEX.md", "TOOLS.md", "CHANGELOG.md", "DECISIONS.md", "requirements.txt"):
+        for name in ("AGENTS.md", "INDEX.md", "TOOLS.md", "HANDOFF.md", "tools/check_handoff.py", "CHANGELOG.md", "DECISIONS.md", "requirements.txt"):
             self.assertTrue((ROOT / name).is_file(), name)
+
+    def test_handoff_contract(self):
+        result = subprocess.run(
+            [sys.executable, "tools/check_handoff.py", "--allow-dirty"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_authoritative_docs_do_not_require_obsidian(self):
         for name in ("AGENTS.md", "INDEX.md", "README.md", "ARCHITECTURE.md"):

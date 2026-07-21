@@ -7,12 +7,13 @@
 1. `INDEX.md` — 架构、流程和文件地图。
 2. `TOOLS.md` — Windows 命令、依赖、网络访问和副作用边界。
 3. `项目摘要.md` — 项目专属记忆；按状态栏、Tag 路由、最新回溯、下次优先接管。
-4. `STRATEGY.md` — 当前策略逻辑与限制。
-5. `PARAMETERS.md` — 参数事实源。
-6. `VALIDATION.md` — 验证门禁。
-7. `DISCIPLINE.md` — 交易与风控铁律。
-8. `DECISIONS.md` — 设计决策、已知缺陷和上线条件。
-9. `CHANGELOG.md` — 操作与故障记录。
+4. `HANDOFF.md` — 当前人工工作单元、远端自动化责任、精确暂停点和下一动作。
+5. `STRATEGY.md` — 当前策略逻辑与限制。
+6. `PARAMETERS.md` — 参数事实源。
+7. `VALIDATION.md` — 验证门禁。
+8. `DISCIPLINE.md` — 交易与风控铁律。
+9. `DECISIONS.md` — 设计决策、已知缺陷和上线条件。
+10. `CHANGELOG.md` — 操作与故障记录。
 
 ## 当前状态
 
@@ -34,6 +35,8 @@
 - 结果、决策、故障和教训必须写回本仓库，不依赖外部知识库。
 - 每完成一段可独立验收的工作，或确认长期决定、可复用踩坑、下一步变化时，更新 `项目摘要.md` 的目标 / 方案 / 结果 / 痛点回溯和已登记 Tags；普通对话不机械生成摘要。
 - `项目摘要.md` 不保存余额、当前信号、交易数或实时绩效；实时状态始终以 `paper_trade/state.json` 及对应 CSV 为准。
+- `HANDOFF.md` 是当前人工接管现场的唯一事实源，但不是交易实时数据源；`MONITORING` 状态必须声明 GitHub Actions 外部责任。
+- 暂停或交付前运行 `tools\check_handoff.py`；`MONITORING` 状态只有在工作区清洁时才可交付。
 
 ## 最小验证
 

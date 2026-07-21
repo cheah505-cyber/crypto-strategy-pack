@@ -196,6 +196,7 @@ Cohen's d（均值）：< 0.2 可忽略，0.2-0.5 小，0.5-0.8 中，> 0.8 大�
 - 入口与铁律：`AGENTS.md`
 - 项目索引：`INDEX.md`
 - 项目专属记忆：`项目摘要.md`（状态、Tag 路由、目标/方案/结果/痛点回溯、下一步；不是实时交易状态）
+- 当前工作现场：`HANDOFF.md`（工作单元、远端自动化责任、下一动作；不是实时交易状态）
 - 决策与上线条件：`DECISIONS.md`
 - 操作和故障历史：`CHANGELOG.md`
 - 经验教训：`LESSONS.md`、`lessons-crypto.md`
@@ -203,3 +204,5 @@ Cohen's d（均值）：< 0.2 可忽略，0.2-0.5 小，0.5-0.8 中，> 0.8 大�
 - 待办：`loop/tasks.json`
 
 可复用结论和接管状态写入 `项目摘要.md`；详细决策、发现、教训和操作历史继续保存在上述专属文件中。所有长期事实和决策必须保存在仓库并随 GitHub 同步。
+
+冷接管先运行 `python tools\check_handoff.py --resume`，再重新读取 `paper_trade/state.json` 和最近工作流；不得引用 Handoff 中的历史状态代替实时核验。
