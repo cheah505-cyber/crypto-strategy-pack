@@ -10,6 +10,8 @@
 |---|---|---|
 | 自包含测试 | `.\.venv\Scripts\python.exe -m unittest tests.test_project_self_contained -v` | 仅缓存，已忽略 |
 | Handoff 检查 | `.\.venv\Scripts\python.exe tools\check_handoff.py --resume` | 只读 |
+| Handoff 生命周期 | `.\.venv\Scripts\python.exe tools\handoff.py --help` | 更新 Handoff，不自动提交 |
+| 远端监控健康 | `.\.venv\Scripts\python.exe tools\check_monitoring_health.py` | 读取 GitHub Actions |
 | 主策略完整检查 | `.\.venv\Scripts\python.exe backtests\adx_adaptive_perp_eth_4h.py` | 读取行情数据 |
 | 手动信号 | `tools\check_signal.bat` | 读取纸面状态，不下实盘单 |
 | 数据质量 | `.\.venv\Scripts\python.exe tools\ohlcv_quality_checker.py --file data\eth_usdt_4h.csv` | 只读 |

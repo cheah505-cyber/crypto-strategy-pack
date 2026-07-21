@@ -11,33 +11,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_STATES = {"ACTIVE", "PAUSED", "BLOCKED", "COMPLETE", "MONITORING"}
 REQUIRED_KEYS = (
-    "handoff_version",
-    "status",
-    "updated_at",
-    "work_unit_id",
-    "phase",
-    "current_file",
-    "next_action_file",
-    "next_action_anchor",
-    "next_action",
-    "acceptance",
-    "blocked_by",
-    "running_processes",
-    "external_responsibilities",
-    "baseline_revision",
-    "last_verified_at",
-    "last_verified_command",
+    "handoff_version", "status", "updated_at", "work_unit_id", "phase",
+    "owner", "session_id", "active_branch", "started_at", "lease_until",
+    "touched_paths", "current_file", "next_action_file", "next_action_anchor",
+    "next_action", "acceptance", "blocked_by", "running_processes",
+    "external_responsibilities", "work_started_from", "monitoring_provider",
+    "monitoring_target", "expected_interval_minutes", "stale_after_minutes",
+    "last_verified_at", "last_verified_command",
 )
-REQUIRED_HEADINGS = (
-    "## 0. 接管状态",
-    "## 1. 最后完成",
-    "## 2. 精确暂停点",
-    "## 3. 当前工作现场",
-    "## 4. 下一动作与验收",
-    "## 5. 未决与风险",
-    "## 6. 最近验证",
-    "## 7. 恢复命令",
-)
+REQUIRED_HEADINGS = tuple(f"## {number}. {title}" for number, title in enumerate((
+    "接管状态", "最后完成", "精确暂停点", "当前工作现场", "下一动作与验收",
+    "未决与风险", "最近验证", "恢复命令",
+)))
 
 
 def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
@@ -55,8 +40,7 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
         if ":" not in line:
             raise ValueError(f"无法解析元数据行：{line}")
         key, value = line.split(":", 1)
-        key = key.strip()
-        value = value.strip().strip('"')
+        key, value = key.strip(), value.strip().strip('"')
         if not key or not value:
             raise ValueError(f"元数据键值不能为空：{line}")
         if key in metadata:
@@ -65,81 +49,115 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     return metadata, "\n".join(lines[end + 1 :])
 
 
-def project_path(relative: str) -> Path | None:
+def run_git(root: Path, *args: str) -> tuple[int, str]:
+    result = subprocess.run(["git", *args], cwd=root, text=True, capture_output=True, check=False)
+    return result.returncode, (result.stdout.strip() or result.stderr.strip())
+
+
+def project_path(root: Path, relative: str) -> Path | None:
     if relative == "none":
         return None
     candidate = Path(relative)
     if candidate.is_absolute() or ".." in candidate.parts:
         raise ValueError(f"路径必须是项目内相对路径：{relative}")
-    resolved = (ROOT / candidate).resolve()
-    if ROOT.resolve() not in resolved.parents and resolved != ROOT.resolve():
+    resolved, root_resolved = (root / candidate).resolve(), root.resolve()
+    if root_resolved not in resolved.parents and resolved != root_resolved:
         raise ValueError(f"路径越出项目目录：{relative}")
     return resolved
 
 
-def validate(allow_dirty: bool = False) -> tuple[list[str], dict[str, str]]:
+def parse_time(key: str, value: str, errors: list[str], allow_none: bool = False) -> datetime | None:
+    if allow_none and value == "none":
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None:
+            errors.append(f"{key} 必须包含时区")
+        return parsed
+    except ValueError:
+        errors.append(f"{key} 不是 ISO 8601 时间：{value}")
+        return None
+
+
+def validate(root: Path = ROOT, allow_dirty: bool = False) -> tuple[list[str], list[str], dict[str, str]]:
     errors: list[str] = []
-    handoff = ROOT / "HANDOFF.md"
+    warnings: list[str] = []
+    handoff = root / "HANDOFF.md"
     if not handoff.is_file() or handoff.stat().st_size == 0:
-        return ["缺少或为空：HANDOFF.md"], {}
+        return ["缺少或为空：HANDOFF.md"], warnings, {}
     try:
         metadata, body = parse_frontmatter(handoff.read_text(encoding="utf-8-sig"))
     except ValueError as exc:
-        return [f"HANDOFF 元数据错误：{exc}"], {}
-
+        return [f"HANDOFF 元数据错误：{exc}"], warnings, {}
     for key in REQUIRED_KEYS:
         if key not in metadata:
             errors.append(f"HANDOFF 缺少元数据：{key}")
     if errors:
-        return errors, metadata
+        return errors, warnings, metadata
 
     state = metadata["status"]
-    if metadata["handoff_version"] != "1":
+    if metadata["handoff_version"] != "2":
         errors.append(f"不支持的 handoff_version：{metadata['handoff_version']}")
     if state not in ALLOWED_STATES:
         errors.append(f"HANDOFF 状态不合法：{state}")
     if not re.fullmatch(r"[A-Z][A-Z0-9-]{2,31}", metadata["work_unit_id"]):
         errors.append(f"工作单元 ID 格式不合法：{metadata['work_unit_id']}")
 
-    timestamps: dict[str, datetime] = {}
-    for key in ("updated_at", "last_verified_at"):
-        try:
-            timestamps[key] = datetime.fromisoformat(metadata[key])
-            if timestamps[key].tzinfo is None:
-                errors.append(f"{key} 必须包含时区")
-        except ValueError:
-            errors.append(f"{key} 不是 ISO 8601 时间：{metadata[key]}")
-    if len(timestamps) == 2 and timestamps["last_verified_at"] > timestamps["updated_at"]:
+    updated = parse_time("updated_at", metadata["updated_at"], errors)
+    verified = parse_time("last_verified_at", metadata["last_verified_at"], errors)
+    started = parse_time("started_at", metadata["started_at"], errors, allow_none=True)
+    lease = parse_time("lease_until", metadata["lease_until"], errors, allow_none=True)
+    if updated and verified and verified > updated:
         errors.append("last_verified_at 不能晚于 updated_at")
+    if started and lease and lease <= started:
+        errors.append("lease_until 必须晚于 started_at")
 
     for key in ("current_file", "next_action_file"):
         try:
-            path = project_path(metadata[key])
+            path = project_path(root, metadata[key])
             if path is not None and not path.exists():
                 errors.append(f"HANDOFF 指向不存在路径：{key}={metadata[key]}")
             if key == "next_action_file" and path and metadata["next_action_anchor"].startswith("#"):
-                target = path.read_text(encoding="utf-8-sig", errors="ignore")
-                if metadata["next_action_anchor"] not in target:
+                if metadata["next_action_anchor"] not in path.read_text(encoding="utf-8-sig", errors="ignore"):
                     errors.append(f"下一动作锚点不存在：{metadata['next_action_anchor']}")
         except ValueError as exc:
             errors.append(str(exc))
+    for relative in metadata["touched_paths"].split(";"):
+        try:
+            project_path(root, relative.strip())
+        except ValueError as exc:
+            errors.append(str(exc))
 
-    if state == "ACTIVE" and metadata["current_file"] == "none":
-        errors.append("ACTIVE 状态必须填写 current_file")
-    if state == "PAUSED":
-        if metadata["running_processes"] != "none":
-            errors.append("PAUSED 状态不能保留运行进程")
-        if metadata["external_responsibilities"] != "none":
-            errors.append("PAUSED 状态不能保留外部责任")
-    if state == "MONITORING":
-        if metadata["running_processes"] == "none" or metadata["external_responsibilities"] == "none":
-            errors.append("MONITORING 状态必须声明远端进程和外部责任")
+    inactive = state in {"PAUSED", "COMPLETE"}
+    if state == "ACTIVE":
+        for key in ("owner", "session_id", "started_at", "lease_until", "touched_paths", "current_file"):
+            if metadata[key] == "none":
+                errors.append(f"ACTIVE 状态必须填写 {key}")
+        if lease and lease <= datetime.now(lease.tzinfo):
+            errors.append("ACTIVE 租约已过期，必须续期、暂停或由接管者显式接管")
+    if inactive:
+        for key in ("owner", "session_id", "started_at", "lease_until", "touched_paths"):
+            if metadata[key] != "none":
+                errors.append(f"{state} 状态不能保留 {key}")
+        if metadata["running_processes"] != "none" or metadata["external_responsibilities"] != "none":
+            errors.append(f"{state} 状态不能保留运行进程或外部责任")
+    if state == "COMPLETE" and metadata["current_file"] != "none":
+        errors.append("COMPLETE 状态不能保留 current_file")
     if state == "BLOCKED" and metadata["blocked_by"] == "none":
         errors.append("BLOCKED 状态必须填写 blocked_by")
     if state != "BLOCKED" and metadata["blocked_by"] != "none":
         errors.append(f"{state} 状态不能声明 blocked_by")
-    if state == "COMPLETE" and metadata["current_file"] != "none":
-        errors.append("COMPLETE 状态不能保留 current_file")
+    if state == "MONITORING":
+        for key in ("owner", "session_id", "running_processes", "external_responsibilities",
+                    "monitoring_provider", "monitoring_target"):
+            if metadata[key] == "none":
+                errors.append(f"MONITORING 状态必须填写 {key}")
+        for key in ("expected_interval_minutes", "stale_after_minutes"):
+            if not metadata[key].isdigit() or int(metadata[key]) <= 0:
+                errors.append(f"MONITORING 状态要求 {key} 为正整数")
+    elif any(metadata[key] != "none" for key in
+             ("monitoring_provider", "monitoring_target", "expected_interval_minutes", "stale_after_minutes")):
+        errors.append(f"{state} 状态不能保留监控配置")
 
     for heading in REQUIRED_HEADINGS:
         if heading not in body:
@@ -149,49 +167,63 @@ def validate(allow_dirty: bool = False) -> tuple[list[str], dict[str, str]]:
     if f"工作单元：`{metadata['work_unit_id']}`" not in body:
         errors.append("HANDOFF 正文工作单元与元数据不一致")
 
-    if not (ROOT / ".git").is_dir():
+    if not (root / ".git").is_dir():
         errors.append("项目不是独立 Git 仓库")
-    elif not allow_dirty and state in {"PAUSED", "MONITORING", "COMPLETE"}:
-        status = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=ROOT, text=True, capture_output=True, check=False
-        )
-        if status.returncode != 0:
-            errors.append("无法读取 Git 工作区状态：" + status.stderr.strip())
-        elif status.stdout.strip():
-            errors.append(f"{state} 状态要求 Git 工作区清洁")
-    return errors, metadata
+    else:
+        code, branch = run_git(root, "branch", "--show-current")
+        if code or branch != metadata["active_branch"]:
+            errors.append(f"active_branch 与 Git 当前分支不一致：记录={metadata['active_branch']}，实际={branch}")
+        code, _ = run_git(root, "cat-file", "-e", f"{metadata['work_started_from']}^{{commit}}")
+        if code:
+            errors.append(f"work_started_from 不是有效提交：{metadata['work_started_from']}")
+        if not allow_dirty and state in {"PAUSED", "MONITORING", "COMPLETE"}:
+            code, status = run_git(root, "status", "--porcelain")
+            if code or status:
+                errors.append(f"{state} 状态要求 Git 工作区清洁")
+            code, upstream = run_git(root, "rev-list", "--left-right", "--count", "HEAD...@{upstream}")
+            if code:
+                errors.append("无法确认上游同步状态")
+            elif upstream != "0\t0" and upstream != "0 0":
+                errors.append(f"{state} 状态要求与上游同步，当前 behind/ahead={upstream}")
+        if allow_dirty:
+            warnings.append("--allow-dirty 仅供提交前检查，不能作为最终闭环证据")
+    return errors, warnings, metadata
 
 
-def print_resume(metadata: dict[str, str]) -> None:
+def print_resume(root: Path, metadata: dict[str, str]) -> None:
+    _, head = run_git(root, "rev-parse", "--short", "HEAD")
+    _, sync = run_git(root, "rev-list", "--left-right", "--count", "HEAD...@{upstream}")
     print("RESUME:")
-    print(f"  状态：{metadata['status']}")
-    print(f"  工作单元：{metadata['work_unit_id']}")
-    print(f"  阶段：{metadata['phase']}")
-    print(f"  当前文件：{metadata['current_file']}")
-    print(f"  下一位置：{metadata['next_action_file']} -> {metadata['next_action_anchor']}")
-    print(f"  下一动作：{metadata['next_action']}")
-    print(f"  验收：{metadata['acceptance']}")
-    print(f"  阻断：{metadata['blocked_by']}")
-    print(f"  外部责任：{metadata['external_responsibilities']}")
+    for label, key in (("状态", "status"), ("工作单元", "work_unit_id"), ("阶段", "phase"),
+                       ("负责人", "owner"), ("会话", "session_id"), ("租约截止", "lease_until"),
+                       ("涉及路径", "touched_paths"), ("当前文件", "current_file"),
+                       ("下一动作", "next_action"), ("验收", "acceptance"),
+                       ("外部责任", "external_responsibilities"), ("更新时间", "updated_at"),
+                       ("最后验证", "last_verified_at")):
+        print(f"  {label}：{metadata[key]}")
+    print(f"  Git：{metadata['active_branch']}@{head}，behind/ahead={sync or 'unknown'}")
+    if metadata["status"] == "MONITORING":
+        print("  远端健康：未检查；运行项目的 monitoring health checker")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="检查结构化 Handoff")
+    parser = argparse.ArgumentParser(description="检查 Handoff v2")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--allow-dirty", action="store_true")
     args = parser.parse_args()
-    errors, metadata = validate(allow_dirty=args.allow_dirty)
+    errors, warnings, metadata = validate(allow_dirty=args.allow_dirty)
+    for warning in warnings:
+        print(f"WARN: {warning}")
     if errors:
         print("FAIL: Handoff 未闭环")
         for error in errors:
             print(f"  - {error}")
         return 1
-    print("PASS: Handoff 结构、语义、路径与 Git 状态完整")
+    print("PASS: Handoff v2 结构、占用、路径与 Git 状态完整")
     if args.resume:
-        print_resume(metadata)
+        print_resume(ROOT, metadata)
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
-

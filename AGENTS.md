@@ -36,6 +36,8 @@
 - 每完成一段可独立验收的工作，或确认长期决定、可复用踩坑、下一步变化时，更新 `项目摘要.md` 的目标 / 方案 / 结果 / 痛点回溯和已登记 Tags；普通对话不机械生成摘要。
 - `项目摘要.md` 不保存余额、当前信号、交易数或实时绩效；实时状态始终以 `paper_trade/state.json` 及对应 CSV 为准。
 - `HANDOFF.md` 是当前人工接管现场的唯一事实源，但不是交易实时数据源；`MONITORING` 状态必须声明 GitHub Actions 外部责任。
+- 修改前必须用 `python tools/handoff.py start --owner <agent> --session <唯一ID> --file <文件> --paths <路径>` 取得限时占用；不得覆盖未过期的他人租约。暂停、阻断、完成分别用 `pause`、`block`、`complete`，再提交推送并严格运行 `python tools/check_handoff.py`。
+- `--allow-dirty` 只供提交前检查；远端责任另用 `python tools/check_monitoring_health.py` 验证，不能把 Handoff 声明当作健康证据。
 - 暂停或交付前运行 `tools\check_handoff.py`；`MONITORING` 状态只有在工作区清洁时才可交付。
 
 ## 最小验证

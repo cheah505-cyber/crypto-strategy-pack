@@ -1,9 +1,15 @@
 ---
-handoff_version: 1
+handoff_version: 2
 status: MONITORING
-updated_at: 2026-07-21T15:06:40+08:00
+updated_at: 2026-07-21T15:28:23+08:00
 work_unit_id: CRYPTO-PAPER-001
 phase: paper-trading
+owner: github-actions
+session_id: signal-check
+active_branch: master
+started_at: none
+lease_until: none
+touched_paths: none
 current_file: none
 next_action_file: paper_trade/state.json
 next_action_anchor: root
@@ -12,9 +18,13 @@ acceptance: 最近工作流结论明确且state、trades、equity之间不存在
 blocked_by: none
 running_processes: github-actions-scheduled
 external_responsibilities: .github/workflows/signal_check.yml
-baseline_revision: 01bff1d
-last_verified_at: 2026-07-21T15:06:40+08:00
-last_verified_command: .\.venv\Scripts\python.exe -m unittest tests.test_project_self_contained -v
+work_started_from: 68c9609
+monitoring_provider: github-actions
+monitoring_target: cheah505-cyber/crypto-strategy-pack:Signal Check
+expected_interval_minutes: 240
+stale_after_minutes: 360
+last_verified_at: 2026-07-21T15:28:23+08:00
+last_verified_command: python tools/check_monitoring_health.py
 ---
 
 # Crypto 工作交接 / HANDOFF
@@ -64,7 +74,8 @@ last_verified_command: .\.venv\Scripts\python.exe -m unittest tests.test_project
 ## 6. 最近验证
 
 - GitHub：`Signal Check` 工作流为 active；最近三次查询结果为 success。
-- Windows项目虚拟环境：8项自包含与Handoff测试通过。
+- 项目测试：10项通过，包含监控健康正常与禁用/过期测试。
+- 远端健康：GitHub API 实际核验工作流 active，最近成功运行未超过360分钟阈值。
 - 结构化冷接管：`MONITORING`、工作单元、实时事实入口和远端责任输出正确。
 - 严格Handoff与Git清洁检查通过；父级完整恢复验证中的主策略preflight、sanity和回测通过。
 
@@ -73,5 +84,6 @@ last_verified_command: .\.venv\Scripts\python.exe -m unittest tests.test_project
 ```powershell
 Set-Location C:\Users\cheah\Projects\crypto-strategy-pack
 git fetch origin --prune
-.\.venv\Scripts\python.exe -m unittest tests.test_project_self_contained -v
+.\.venv\Scripts\python.exe tools\check_monitoring_health.py
+.\.venv\Scripts\python.exe tools\check_handoff.py --resume
 ```
