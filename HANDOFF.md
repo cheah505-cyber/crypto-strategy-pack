@@ -1,7 +1,7 @@
 ---
 handoff_version: 1
 status: MONITORING
-updated_at: 2026-07-21T15:01:52+08:00
+updated_at: 2026-07-21T15:06:40+08:00
 work_unit_id: CRYPTO-PAPER-001
 phase: paper-trading
 current_file: none
@@ -13,7 +13,7 @@ blocked_by: none
 running_processes: github-actions-scheduled
 external_responsibilities: .github/workflows/signal_check.yml
 baseline_revision: 01bff1d
-last_verified_at: 2026-07-21T15:01:52+08:00
+last_verified_at: 2026-07-21T15:06:40+08:00
 last_verified_command: .\.venv\Scripts\python.exe -m unittest tests.test_project_self_contained -v
 ---
 
@@ -66,7 +66,7 @@ last_verified_command: .\.venv\Scripts\python.exe -m unittest tests.test_project
 - GitHub：`Signal Check` 工作流为 active；最近三次查询结果为 success。
 - Windows项目虚拟环境：8项自包含与Handoff测试通过。
 - 结构化冷接管：`MONITORING`、工作单元、实时事实入口和远端责任输出正确。
-- 最终严格Git清洁检查将在提交后执行。
+- 严格Handoff与Git清洁检查通过；父级完整恢复验证中的主策略preflight、sanity和回测通过。
 
 ## 7. 恢复命令
 
