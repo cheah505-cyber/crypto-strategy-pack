@@ -10,3 +10,4 @@ trade_id,entry_time,exit_time,side,regime,entry_price,exit_price,return_pct,exit
 9,2026-06-29 16:00:00,2026-07-08 08:00:00,LONG,trend,1626.88,1738.79,14.22,trail_stop
 10,2026-07-11 16:00:00,2026-07-12 00:00:00,LONG,transition,1824.18,1806.58,-3.83,trail_stop
 11,2026-07-14 12:00:00,2026-07-16 08:00:00,LONG,transition,1872.32,1887.0,2.14,trail_stop
+12,2026-07-20 16:00:00,2026-07-21 20:00:00,LONG,transition,1912.24,1922.58,1.58,trail_stop
