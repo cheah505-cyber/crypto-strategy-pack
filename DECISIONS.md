@@ -46,3 +46,9 @@
 - `manual_signal` 必须读取本轮更新后的 `state.json`。
 - workflow 必须使用 concurrency，避免定时与手动任务重叠。
 - 2026-06-24 曾发现旧状态导致信号与 paper trade 矛盾，并发现重复推送风险；此规则是回归门禁。
+
+## MONITORING 接管决策
+
+- 远端定时任务持续写入状态时，不要求接管机机械保持 `ahead/behind=0/0`；允许的远端领先必须由 `.handoff-monitoring.json` 逐提交验证作者、标题、路径与数量。
+- 严格检查必须先刷新远端，并同时通过 GitHub Actions 健康检查和 `tools/check_monitoring_state.py` 数据一致性检查；鉴权或网络失败属于 `UNVERIFIED`，不是通过。
+- 本地领先、分叉、脏工作区、非白名单提交或状态文件互相矛盾时，MONITORING 闭环立即失败，不得自动合并或掩盖。

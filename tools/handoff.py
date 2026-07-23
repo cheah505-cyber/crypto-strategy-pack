@@ -118,6 +118,33 @@ def block(args: argparse.Namespace) -> None:
     print(f"PASS: 已记录阻断：{args.reason}")
 
 
+def monitor(args: argparse.Namespace) -> None:
+    metadata, body = read()
+    current = now()
+    metadata.update({
+        "status": "MONITORING", "updated_at": current.isoformat(),
+        "owner": args.owner, "session_id": args.session,
+        "started_at": "none", "lease_until": "none", "touched_paths": "none",
+        "current_file": "none", "blocked_by": "none",
+        "running_processes": args.process,
+        "external_responsibilities": args.responsibility,
+        "work_started_from": git("rev-parse", "HEAD"),
+        "monitoring_provider": args.provider, "monitoring_target": args.target,
+        "expected_interval_minutes": str(args.interval_minutes),
+        "stale_after_minutes": str(args.stale_minutes),
+        "last_verified_at": current.isoformat(),
+        "last_verified_command": "python tools/handoff.py monitor",
+    })
+    for key in ("next_file", "anchor", "action", "acceptance"):
+        value = getattr(args, key, None)
+        if value:
+            metadata[{"next_file": "next_action_file", "anchor": "next_action_anchor",
+                      "action": "next_action", "acceptance": "acceptance"}[key]] = value
+    ensure_valid(metadata, body)
+    print(f"PASS: 已将 {metadata['work_unit_id']} 标记为 MONITORING")
+    print("NEXT: 提交并推送 HANDOFF.md 后，再运行严格检查验证远端策略与健康")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Handoff v2 生命周期工具（不自动提交或推送）")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -137,6 +164,19 @@ def main() -> int:
         target.add_argument("--acceptance")
     blocked = sub.add_parser("block")
     blocked.add_argument("--reason", required=True)
+    monitoring = sub.add_parser("monitor")
+    monitoring.add_argument("--owner", required=True)
+    monitoring.add_argument("--session", required=True)
+    monitoring.add_argument("--provider", required=True)
+    monitoring.add_argument("--target", required=True)
+    monitoring.add_argument("--process", required=True)
+    monitoring.add_argument("--responsibility", required=True)
+    monitoring.add_argument("--interval-minutes", type=int, required=True)
+    monitoring.add_argument("--stale-minutes", type=int, required=True)
+    monitoring.add_argument("--next-file")
+    monitoring.add_argument("--anchor")
+    monitoring.add_argument("--action")
+    monitoring.add_argument("--acceptance")
     args = parser.parse_args()
     try:
         if args.command == "show":
@@ -154,6 +194,10 @@ def main() -> int:
             start(args)
         elif args.command == "block":
             block(args)
+        elif args.command == "monitor":
+            if args.interval_minutes <= 0 or args.stale_minutes <= 0:
+                raise RuntimeError("监控间隔与过期阈值必须为正整数")
+            monitor(args)
         else:
             stop(args, "PAUSED" if args.command == "pause" else "COMPLETE")
         return 0

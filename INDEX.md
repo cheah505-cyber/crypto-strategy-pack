@@ -197,6 +197,8 @@ Cohen's d（均值）：< 0.2 可忽略，0.2-0.5 小，0.5-0.8 中，> 0.8 大�
 - 项目索引：`INDEX.md`
 - 项目专属记忆：`项目摘要.md`（状态、Tag 路由、目标/方案/结果/痛点回溯、下一步；不是实时交易状态）
 - 当前工作现场：`HANDOFF.md`（工作单元、远端自动化责任、下一动作；不是实时交易状态）
+- 监控闭环策略：`.handoff-monitoring.json`（允许的自动提交身份、标题、路径、滞后上限与强制检查）
+- 监控数据一致性：`tools/check_monitoring_state.py`（校验远端行情、state、权益和交易记录）
 - 决策与上线条件：`DECISIONS.md`
 - 操作和故障历史：`CHANGELOG.md`
 - 经验教训：`LESSONS.md`、`lessons-crypto.md`

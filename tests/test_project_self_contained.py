@@ -9,7 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ProjectSelfContainedTest(unittest.TestCase):
     def test_required_handoff_files_exist(self):
-        for name in ("AGENTS.md", "INDEX.md", "TOOLS.md", "HANDOFF.md", "tools/check_handoff.py", "CHANGELOG.md", "DECISIONS.md", "requirements.txt"):
+        for name in (
+            "AGENTS.md", "INDEX.md", "TOOLS.md", "HANDOFF.md", ".handoff-monitoring.json",
+            "tools/check_handoff.py", "tools/check_monitoring_state.py",
+            "CHANGELOG.md", "DECISIONS.md", "requirements.txt",
+        ):
             self.assertTrue((ROOT / name).is_file(), name)
 
     def test_handoff_contract(self):

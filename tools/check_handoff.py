@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -23,6 +24,7 @@ REQUIRED_HEADINGS = tuple(f"## {number}. {title}" for number, title in enumerate
     "接管状态", "最后完成", "精确暂停点", "当前工作现场", "下一动作与验收",
     "未决与风险", "最近验证", "恢复命令",
 )))
+MONITORING_POLICY = ".handoff-monitoring.json"
 
 
 def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
@@ -54,6 +56,13 @@ def run_git(root: Path, *args: str) -> tuple[int, str]:
     return result.returncode, (result.stdout.strip() or result.stderr.strip())
 
 
+def parse_sync_counts(value: str) -> tuple[int, int]:
+    parts = value.replace("\t", " ").split()
+    if len(parts) != 2:
+        raise ValueError(f"无法解析 Git ahead/behind：{value}")
+    return int(parts[0]), int(parts[1])
+
+
 def project_path(root: Path, relative: str) -> Path | None:
     if relative == "none":
         return None
@@ -79,7 +88,128 @@ def parse_time(key: str, value: str, errors: list[str], allow_none: bool = False
         return None
 
 
-def validate(root: Path = ROOT, allow_dirty: bool = False) -> tuple[list[str], list[str], dict[str, str]]:
+def load_monitoring_policy(root: Path, errors: list[str]) -> dict:
+    path = root / MONITORING_POLICY
+    if not path.is_file():
+        errors.append(f"MONITORING 状态缺少策略文件：{MONITORING_POLICY}")
+        return {}
+    try:
+        policy = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        errors.append(f"无法读取 {MONITORING_POLICY}：{exc}")
+        return {}
+    if not isinstance(policy, dict) or policy.get("version") != 1:
+        errors.append(f"{MONITORING_POLICY} 必须是 version=1 的 JSON 对象")
+        return {}
+    return policy
+
+
+def run_monitoring_checks(root: Path, policy: dict, errors: list[str]) -> None:
+    checks = policy.get("checks")
+    if not isinstance(checks, list) or not checks:
+        errors.append(f"{MONITORING_POLICY} 必须声明非空 checks")
+        return
+    for item in checks:
+        if not isinstance(item, dict):
+            errors.append(f"{MONITORING_POLICY} 的 checks 项必须是对象")
+            continue
+        name, script, args = item.get("name"), item.get("script"), item.get("args", [])
+        if not isinstance(name, str) or not name.strip():
+            errors.append(f"{MONITORING_POLICY} 的检查名称不能为空")
+            continue
+        if not isinstance(script, str) or not script.endswith(".py") or not isinstance(args, list):
+            errors.append(f"监控检查 {name} 的 script/args 不合法")
+            continue
+        try:
+            path = project_path(root, script)
+        except ValueError as exc:
+            errors.append(str(exc))
+            continue
+        if path is None or not path.is_file() or any(not isinstance(arg, str) for arg in args):
+            errors.append(f"监控检查 {name} 指向无效脚本或参数：{script}")
+            continue
+        result = subprocess.run(
+            [sys.executable, str(path), *args], cwd=root, text=True,
+            capture_output=True, check=False,
+        )
+        if result.returncode:
+            detail = result.stdout.strip() or result.stderr.strip() or f"exit={result.returncode}"
+            errors.append(f"监控检查未通过（{name}）：{detail}")
+
+
+def validate_monitoring_sync(
+    root: Path, ahead: int, behind: int, errors: list[str], warnings: list[str]
+) -> None:
+    initial_error_count = len(errors)
+    policy = load_monitoring_policy(root, errors)
+    if not policy:
+        return
+    if ahead:
+        errors.append(f"MONITORING 本地存在 {ahead} 个未推送提交")
+        return
+    max_behind = policy.get("max_behind_commits")
+    authors = policy.get("allowed_author_emails")
+    subject_pattern = policy.get("subject_pattern")
+    allowed_paths = policy.get("allowed_paths")
+    if not isinstance(max_behind, int) or max_behind < 0:
+        errors.append(f"{MONITORING_POLICY} 的 max_behind_commits 必须是非负整数")
+        return
+    if not isinstance(authors, list) or not authors or any(not isinstance(x, str) for x in authors):
+        errors.append(f"{MONITORING_POLICY} 的 allowed_author_emails 不合法")
+        return
+    if not isinstance(allowed_paths, list) or not allowed_paths or any(not isinstance(x, str) for x in allowed_paths):
+        errors.append(f"{MONITORING_POLICY} 的 allowed_paths 不合法")
+        return
+    try:
+        subject_re = re.compile(subject_pattern)
+    except (TypeError, re.error) as exc:
+        errors.append(f"{MONITORING_POLICY} 的 subject_pattern 不合法：{exc}")
+        return
+    if behind > max_behind:
+        errors.append(f"MONITORING 远端领先 {behind} 个提交，超过策略上限 {max_behind}")
+        return
+
+    code, commits_text = run_git(root, "rev-list", "--reverse", "HEAD..@{upstream}")
+    if code:
+        errors.append(f"无法枚举 MONITORING 远端提交：{commits_text}")
+        return
+    commits = [line for line in commits_text.splitlines() if line]
+    if len(commits) != behind:
+        errors.append(f"MONITORING 提交计数不一致：计数={behind}，枚举={len(commits)}")
+        return
+    allowed_authors, allowed_path_set = set(authors), set(allowed_paths)
+    for commit in commits:
+        code, identity = run_git(root, "show", "-s", "--format=%ae%x00%s%x00%P", commit)
+        if code:
+            errors.append(f"无法读取监控提交 {commit[:12]}：{identity}")
+            continue
+        parts = identity.split("\x00")
+        if len(parts) != 3:
+            errors.append(f"监控提交元数据异常：{commit[:12]}")
+            continue
+        email, subject, parents = parts
+        if email not in allowed_authors:
+            errors.append(f"监控提交作者不在白名单：{commit[:12]} {email}")
+        if not subject_re.fullmatch(subject):
+            errors.append(f"监控提交标题不符合策略：{commit[:12]} {subject}")
+        if len(parents.split()) != 1:
+            errors.append(f"监控提交不允许是合并或根提交：{commit[:12]}")
+        code, paths_text = run_git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", commit)
+        if code:
+            errors.append(f"无法读取监控提交路径：{commit[:12]} {paths_text}")
+            continue
+        unexpected = sorted(set(paths_text.splitlines()) - allowed_path_set)
+        if unexpected:
+            errors.append(f"监控提交修改了非白名单路径：{commit[:12]} {', '.join(unexpected)}")
+    if len(errors) == initial_error_count:
+        if behind:
+            warnings.append(f"MONITORING 受控远端领先 {behind} 个提交，已通过作者、标题和路径白名单")
+        run_monitoring_checks(root, policy, errors)
+
+
+def validate(
+    root: Path = ROOT, allow_dirty: bool = False, refresh_remote: bool = False
+) -> tuple[list[str], list[str], dict[str, str]]:
     errors: list[str] = []
     warnings: list[str] = []
     handoff = root / "HANDOFF.md"
@@ -177,14 +307,25 @@ def validate(root: Path = ROOT, allow_dirty: bool = False) -> tuple[list[str], l
         if code:
             errors.append(f"work_started_from 不是有效提交：{metadata['work_started_from']}")
         if not allow_dirty and state in {"PAUSED", "MONITORING", "COMPLETE"}:
+            if refresh_remote:
+                code, output = run_git(root, "fetch", "origin", "--prune")
+                if code:
+                    errors.append(f"UNVERIFIED: 无法刷新远端引用：{output}")
             code, status = run_git(root, "status", "--porcelain")
             if code or status:
                 errors.append(f"{state} 状态要求 Git 工作区清洁")
             code, upstream = run_git(root, "rev-list", "--left-right", "--count", "HEAD...@{upstream}")
             if code:
                 errors.append("无法确认上游同步状态")
-            elif upstream != "0\t0" and upstream != "0 0":
-                errors.append(f"{state} 状态要求与上游同步，当前 behind/ahead={upstream}")
+            else:
+                try:
+                    ahead, behind = parse_sync_counts(upstream)
+                    if state == "MONITORING":
+                        validate_monitoring_sync(root, ahead, behind, errors, warnings)
+                    elif ahead or behind:
+                        errors.append(f"{state} 状态要求与上游同步，当前 ahead/behind={ahead}/{behind}")
+                except ValueError as exc:
+                    errors.append(str(exc))
         if allow_dirty:
             warnings.append("--allow-dirty 仅供提交前检查，不能作为最终闭环证据")
     return errors, warnings, metadata
@@ -201,7 +342,7 @@ def print_resume(root: Path, metadata: dict[str, str]) -> None:
                        ("外部责任", "external_responsibilities"), ("更新时间", "updated_at"),
                        ("最后验证", "last_verified_at")):
         print(f"  {label}：{metadata[key]}")
-    print(f"  Git：{metadata['active_branch']}@{head}，behind/ahead={sync or 'unknown'}")
+    print(f"  Git：{metadata['active_branch']}@{head}，ahead/behind={sync or 'unknown'}")
     if metadata["status"] == "MONITORING":
         print("  远端健康：未检查；运行项目的 monitoring health checker")
 
@@ -210,8 +351,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="检查 Handoff v2")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--allow-dirty", action="store_true")
+    parser.add_argument("--offline", action="store_true", help="不刷新远端；结果不能证明远端闭环")
     args = parser.parse_args()
-    errors, warnings, metadata = validate(allow_dirty=args.allow_dirty)
+    errors, warnings, metadata = validate(
+        allow_dirty=args.allow_dirty,
+        refresh_remote=not args.offline and not args.allow_dirty,
+    )
+    if args.offline and not args.allow_dirty:
+        warnings.append("--offline 未刷新远端引用，只能验证本地结构")
     for warning in warnings:
         print(f"WARN: {warning}")
     if errors:

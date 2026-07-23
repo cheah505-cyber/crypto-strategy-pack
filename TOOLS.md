@@ -9,7 +9,8 @@
 | 目的 | 命令 | 副作用 |
 |---|---|---|
 | 自包含测试 | `.\.venv\Scripts\python.exe -m unittest tests.test_project_self_contained -v` | 仅缓存，已忽略 |
-| Handoff 检查 | `.\.venv\Scripts\python.exe tools\check_handoff.py --resume` | 只读 |
+| 严格 Handoff 检查 | `.\.venv\Scripts\python.exe tools\check_handoff.py --resume` | fetch 远端并验证监控策略 |
+| 监控文件一致性 | `.\.venv\Scripts\python.exe tools\check_monitoring_state.py --ref "@{upstream}"` | 读取远端 Git 对象 |
 | Handoff 生命周期 | `.\.venv\Scripts\python.exe tools\handoff.py --help` | 更新 Handoff，不自动提交 |
 | 远端监控健康 | `.\.venv\Scripts\python.exe tools\check_monitoring_health.py` | 读取 GitHub Actions |
 | 主策略完整检查 | `.\.venv\Scripts\python.exe backtests\adx_adaptive_perp_eth_4h.py` | 读取行情数据 |
@@ -40,3 +41,5 @@
 ## GitHub 同步
 
 自动任务会持续提交行情和纸面状态。修改前先运行 `git fetch origin --prune` 与 `git status -sb`；有双向提交时先合并远端状态。除非用户明确批准，不直接推送或修改 Actions Secrets。
+
+`.handoff-monitoring.json` 是受控远端领先的唯一策略入口：只接受 GitHub Actions bot、固定提交标题、四个数据/状态路径和最多 50 个提交，并运行远端健康及状态一致性检查。任何身份、路径或数据关系不符都必须停止接管。
