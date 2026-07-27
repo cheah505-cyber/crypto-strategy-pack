@@ -1,16 +1,16 @@
 {
-  "equity": 112.18038657736545,
+  "equity": 105.9923071089901,
   "peak": 127.66,
   "max_dd": 0.2927330944569394,
-  "pos_side": 1,
+  "pos_side": 0,
   "entry_price": 1947.442450608,
   "entry_equity": 112.18038657736545,
   "entry_time": "2026-07-27 00:00:00",
   "entry_regime": "transition",
   "entry_contracts": 0.26615239816245273,
   "trail_stop": 1952.9054609582495,
-  "consec_losses": 0,
+  "consec_losses": 1,
   "cooldown_until": -1,
-  "trade_count": 12,
-  "last_processed": "2026-07-27 08:00:00"
+  "trade_count": 13,
+  "last_processed": "2026-07-27 12:00:00"
 }
