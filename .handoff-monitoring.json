@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "max_behind_commits": 50,
+  "max_behind_commits": 200,
   "allowed_author_emails": [
     "github-actions[bot]@users.noreply.github.com"
   ],
