@@ -1,5 +1,5 @@
 {
-  "equity": 108.05527376470725,
+  "equity": 106.5988970173412,
   "peak": 127.66,
   "max_dd": 0.2927330944569394,
   "pos_side": 1,
@@ -12,5 +12,5 @@
   "consec_losses": 0,
   "cooldown_until": -1,
   "trade_count": 14,
-  "last_processed": "2026-08-06 12:00:00"
+  "last_processed": "2026-08-07 00:00:00"
 }
