@@ -1,7 +1,7 @@
 ---
 handoff_version: "2"
 status: "MONITORING"
-updated_at: "2026-07-23T08:52:37+08:00"
+updated_at: "2026-08-08T07:08:49+08:00"
 work_unit_id: "CRYPTO-PAPER-001"
 phase: "paper-trading"
 owner: "github-actions"
@@ -18,12 +18,12 @@ acceptance: "最近工作流结论明确且state、trades、equity之间不存�
 blocked_by: "none"
 running_processes: "github-actions-scheduled"
 external_responsibilities: ".github/workflows/signal_check.yml"
-work_started_from: "5082fc7caeac7865f81eacfed3c9c6170dac4efa"
+work_started_from: "76abf7ee5588889e4c6c086aebf9683314968055"
 monitoring_provider: "github-actions"
 monitoring_target: "cheah505-cyber/crypto-strategy-pack:Signal Check"
 expected_interval_minutes: "240"
 stale_after_minutes: "360"
-last_verified_at: "2026-07-23T08:52:37+08:00"
+last_verified_at: "2026-08-08T07:08:49+08:00"
 last_verified_command: "python tools/handoff.py monitor"
 ---
 
