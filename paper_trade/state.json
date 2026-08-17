@@ -8,9 +8,9 @@
   "entry_time": "2026-08-17 00:00:00",
   "entry_regime": "transition",
   "entry_contracts": 0.3942498943496354,
-  "trail_stop": 1887.952384808046,
+  "trail_stop": 1895.5233573217567,
   "consec_losses": 4,
   "cooldown_until": -1,
   "trade_count": 18,
-  "last_processed": "2026-08-17 00:00:00"
+  "last_processed": "2026-08-17 04:00:00"
 }
