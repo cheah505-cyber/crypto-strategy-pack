@@ -29,3 +29,4 @@ trade_id,entry_time,exit_time,side,regime,entry_price,exit_price,return_pct,exit
 28,2026-10-12 04:00:00,2026-10-12 08:00:00,LONG,transition,2567.17,2546.07,-4.24,trail_stop
 29,2026-10-12 20:00:00,2026-10-13 04:00:00,SHORT,transition,2445.56,2529.16,-12.5,trail_stop
 30,2026-10-14 12:00:00,2026-10-15 12:00:00,SHORT,transition,2466.3,2440.81,2.81,trail_stop
+31,2026-10-17 20:00:00,2026-10-18 00:00:00,SHORT,transition,2384.94,2423.9,-4.97,trail_stop
